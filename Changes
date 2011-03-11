@@ -1,0 +1,70 @@
+Revision history for Config-AutoConf
+
+0.16    Sep 23, 2010
+        - Config::AutoConf::Linker moved to ExtUtils::LibBuilder.
+
+0.15    Mar  8, 2010
+        - Config::AutoConf::Linker more silent.
+
+0.14    Feb 14, 2010
+        - Added rewind to Linker.pm module. This code is still under heavy tests.
+
+0.13    Jun  2, 2009
+        - First stable release with code to detect how to build a C dynamic library.
+
+0.12_3  Jun  1, 2009
+        - Trying other way arround to change LD_LIBRARY_PATH under
+          t/04, that was failing under FreeBSD.
+
+0.12_2  May 19, 2009
+	- Added t/04 that was missing from MANIFEST
+
+0.12_1	May 18, 2009
+	- Added code to detect how to build a library. 
+      It is a big, really big hack. Still not documented.
+
+0.11	January 9, 2009
+	- check_prog with better support for Windows machines.
+
+0.10    September 3, 2008
+	- Removed the tilde on my name, from Makefile.PL.
+	  Was generating some weird results on VMS and Solaris.
+
+0.09    April 23, 2008
+	- Added 'check_headers?' methods to check for C heading files;
+	- fixed the deletion of .c files created by failing tests;
+	- Require perl 5.8.1 and ExtUtils::CBuilder 0.23
+
+0.08    March 29, 2008
+	- require a 5.8 Perl 
+
+0.07	March 21, 2008
+	- re-factored some tests to make them Win-aware
+
+0.06	March 19, 2008
+	- added -quiet option to ExtUtils::CBuilder for less noise when 
+	  detecting things.
+
+0.05	March 18, 2008
+	- added 'check_prog_yacc' method to check for a yacc implementation
+	  (see POD)
+
+0.04	March 18, 2008
+	- adapt to new ExtUtils::CBuilder API
+
+0.03	August 12, 2005
+	- Added 'check_file' and 'check_files' methods (kind of stupid methods)
+
+0.02	February 14, 2005
+	- Moved from ExtUtils:: to Config::
+
+Previous releases
+	- Added 'check_prog' method to check for executable program
+	- Added 'check_progs' method to check for a list of programs
+	- Added 'check_prog_awk' method to check for an awk implementation
+	- Added 'check_prog_egrep' method to check for an egrep implementation
+	- first indexable version -- I need to use this module somewhere else;
+	- using ExtUtils::CBuilder to compile test;
+	- version correcting test for Mac OS-X (thanks, Michael Schwern);
+	- using Config module to get CC value and EXE extension;
+	- using ExtUtils::CBuilder (well take advantage of it later);
