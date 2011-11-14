@@ -22,6 +22,8 @@ use strict;
 our $LIBEXT = (defined $Config{dlext}) ? ("." . $Config{dlext}) : ($^O =~ /darwin/i)  ? ".dylib" : ( ($^O =~ /mswin32/i) ? ".dll" : ".so" );
 our $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
 
+=encoding utf-8
+
 =head1 NAME
 
 Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
@@ -700,7 +702,7 @@ sub _cache_name {
 
 =head1 AUTHOR
 
-Alberto Simıes, C<< <ambs@cpan.org> >>
+Alberto Sim√µes, C<< <ambs@cpan.org> >>
 
 Jens Rehsack, C<< < > >>
 
