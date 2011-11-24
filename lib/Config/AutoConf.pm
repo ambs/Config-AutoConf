@@ -77,10 +77,19 @@ sub new {
     lang => "C",
     lang_stack => [],
     lang_supported => {
-      C => "ExtUtils::CBuilder",
+      "C" => "ExtUtils::CBuilder",
     },
     cache => {},
     defines => {},
+    extra_libs => [],
+    extra_lib_dirs => [],
+    extra_include_dirs => [],
+    extra_preprocess_flags => [],
+    extra_compile_flags => {
+      "C" => [],
+    },
+    extra_link_flags => [],
+    logfile => undef,
   );
   my $self = bless( \%instance, $class );
 
@@ -265,7 +274,7 @@ sub result_msg {
 
 =head2 define_var( $name, $value [, $comment ] )
 
-Defines a check variable for later use in further checks or code to compile
+Defines a check variable for later use in further checks or code to compile.
 
 =cut
 
@@ -377,7 +386,9 @@ sub compile_if_else {
   print {$fh} $src;
   close $fh;
 
-  my $obj_file = eval{ $builder->compile(source => $filename) };
+  my $obj_file = eval { $builder->compile( source => $filename,
+                                           include_dirs => $self->{extra_include_dirs},
+					   extra_compiler_flags => $self->_get_extra_compiler_flags() ); };
 
   unlink $filename;
   unlink $obj_file if $obj_file;
@@ -410,7 +421,9 @@ sub link_if_else {
   print {$fh} $src;
   close $fh;
 
-  my $obj_file = eval{ $builder->compile(source => $filename) };
+  my $obj_file = eval { $builder->compile( source => $filename,
+					   include_dirs => $self->{extra_include_dirs},
+					   extra_compiler_flags => $self->_get_extra_compiler_flags() ); };
 
   if ($@ || !$obj_file) {
     unlink $filename;
@@ -419,7 +432,8 @@ sub link_if_else {
     return 0;
   }
 
-  my $exe_file = eval { $builder->link_executable(objects => $obj_file) };
+  my $exe_file = eval { $builder->link_executable( objects => $obj_file,
+                                                   extra_linker_flags => $self->_get_extra_linker_flags() ); };
 
   unlink $filename;
   unlink $obj_file if $obj_file;
@@ -589,7 +603,14 @@ sub check_default_headers {
   return $rc;
 }
 
-=head2 check_lib
+sub _have_lib_define_name {
+  my $lib = $_[0];
+  my $have_name = "HAVE_LIB" . uc($lib);
+  $have_name =~ tr/_A-Za-z0-9/_/c;
+  return $have_name;
+}
+
+=head2 check_lib( lib, func, [ action-if-found ], [ action-if-not-found ], [ @other-libs ] )
 
 This function is used to check if a specific library includes some
 function. Call it with the library name (without the lib portion), and
@@ -602,62 +623,60 @@ It returns 1 if the function exist, 0 otherwise.
 =cut
 
 sub check_lib {
-  my $self = shift;
-  my $lib = shift;
-  my $func = shift;
-
-  my $cbuilder = ExtUtils::CBuilder->new(quiet => 1);
+  my ( $self, $lib, $func, $action_if_found, $action_if_not_found, @other_libs ) = @_;
+  ref($self) or $self = $self->_get_instance();
 
   return 0 unless $lib;
   return 0 unless $func;
 
-  # print STDERR "Trying to compile test program to check [$func] on [$lib] library...\n";
+  my $cache_name = $self->_cache_name( "lib", $lib, $func );
+  my $check_sub = sub {
 
-  my $LIBS = "-l$lib";
-  my $conftest = <<"_ACEOF";
-/* Override any gcc2 internal prototype to avoid an error.  */
+    my $prologue = <<"_ACEOF";
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
 #ifdef __cplusplus
 extern "C"
 #endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
 char $func ();
-int
-main ()
-{
-  $func ();
-  return 0;
-}
 _ACEOF
+    my $conftest = $self->lang_build_program( $prologue, "return $func ()" );
 
+    my @save_libs = @{$self->{extra_libs}};
+    push( @{$self->{extra_libs}}, $lib, @other_libs );
+    my $have_lib = $self->link_if_else( $conftest );
+    $self->{extra_libs} = [ @save_libs ];
 
+    return $have_lib;
+  };
 
-  my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.c');
-  $filename =~ m!(.*).c$!;
-  my $base = $1;
-
-  print {$fh} $conftest;
-  close $fh;
-
-  my $obj_file = eval{ $cbuilder->compile(source => $filename) };
-
-  if ($@ || !$obj_file) {
-      unlink $filename;
-      unlink $obj_file if $obj_file;        
-      return 0         
+  my $have_lib = $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
+  if( $have_lib )
+  {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
+    {
+      &{$action_if_found}();
+    }
+    else
+    {
+      $self->define_var( _have_lib_define_name( $lib ), $have_lib, "defined when library $lib is available" );
+      push( @{$self->{extra_libs}}, $lib );
+    }
+  }
+  else
+  {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
+    {
+      &{$action_if_not_found}();
+    }
+    else
+    {
+      $self->define_var( _have_lib_define_name( $lib ), undef, "defined when library $lib is available" );
+    }
   }
 
-  my $exe_file = eval { $cbuilder->link_executable(objects => $obj_file,
-						   extra_linker_flags => $LIBS) };
-
-  unlink $filename;
-  unlink $obj_file if $obj_file;
-  unlink $exe_file if $exe_file;
-
-  return 0 if $@;
-  return 0 unless $exe_file;
-
-  return 1;
+  return $have_lib;
 }
 
 #
@@ -703,7 +722,11 @@ sub _set_language {
 
   defined( $self->{lang_supported}->{$lang} ) or croak( "Unsupported language \"$lang\"" );
 
+  defined( $self->{extra_compile_flags}->{$lang} ) or $self->{extra_compile_flags}->{$lang} = [];
+
   $self->{lang} = $lang;
+
+  return;
 }
 
 sub _fill_defines {
@@ -716,6 +739,7 @@ sub _fill_defines {
     defined $defcnt->[1] and $conftest .= "/* " . $defcnt->[1] . " */\n";
     $conftest .= join( " ", "#define", $defname, $defcnt->[0] ) . "\n";
   }
+  $conftest .= "/* end of conftest.h */\n";
 
   return $conftest;
 }
@@ -773,16 +797,9 @@ sub _build_main {
   my $body = shift || "";
 
   my $conftest .= <<"_ACEOF";
-  /* Override any gcc2 internal prototype to avoid an error.  */
-  #ifdef __cplusplus
-  extern "C"
-  #endif
-
   int
-  main (int argc, char **argv)
+  main ()
   {
-    (void)argc;
-    (void)argv;
     $body;
     return 0;
   }
@@ -796,10 +813,24 @@ sub _cache_prefix {
 }
 
 sub _cache_name {
-  my ($self, $name) = @_;
-  my $cache_name = $self->_cache_prefix() . "_cv_" . $name;
+  my ($self, @names) = @_;
+  my $cache_name = join( "_", $self->_cache_prefix(), "cv", @names );
      $cache_name =~ tr/_A-Za-z0-9/_/c;
   return $cache_name;
+}
+
+sub _get_extra_compiler_flags {
+  my $self = shift->_get_instance();
+  my @ppflags = @{$self->{extra_preprocess_flags}};
+  my @cflags = @{$self->{extra_compile_flags}->{ $self->{lang} }};
+  return join( " ", @ppflags, @cflags );
+}
+
+sub _get_extra_linker_flags {
+  my $self = shift->_get_instance();
+  my @libs = @{$self->{extra_libs}};
+  my @ldflags = @{$self->{extra_link_flags}};
+  return join( " ", @ldflags, map { "-l$_" } @libs );
 }
 
 =head1 AUTHOR
