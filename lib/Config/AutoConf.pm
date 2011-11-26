@@ -517,6 +517,113 @@ sub cache_val {
   return $self->{cache}->{$cache_name};
 }
 
+=head2 check_decl( symbol, [action-if-found], [action-if-not-found], [prologue = default includes] )
+
+If symbol (a function, variable or constant) is not declared in includes and
+a declaration is needed, run the code ref given in I<action-if-not-found>,
+otherwise I<action-if-found>. includes is a series of include directives,
+defaulting to I<default includes>, which are used prior to the declaration
+under test.
+
+This method actually tests whether symbol is defined as a macro or can be
+used as an r-value, not whether it is really declared, because it is much
+safer to avoid introducing extra declarations when they are not needed.
+In order to facilitate use of C++ and overloaded function declarations, it
+is possible to specify function argument types in parentheses for types
+which can be zero-initialized:
+
+          Config::AutoConf->check_decl("basename(char *)")
+
+This method caches its result in the ac_cv_decl_<set lang>_symbol variable.
+
+=cut
+
+sub check_decl {
+  my ($self, $symbol, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+  defined( $symbol ) or return; # XXX prefer croak
+  ( my $sym_plain = $symbol ) =~ s/ *\(.*//;
+  my $sym_call = $symbol;
+  $sym_call =~ s/\(/((/;
+  $sym_call =~ s/\)/) 0)/;
+  $sym_call =~ s/,/) 0, (/g;
+
+  my $cache_name = $self->_cache_name( "decl", $self->{lang}, $symbol );
+  my $check_sub = sub {
+  
+    my $body = <<ACEOF;
+#ifndef $sym_plain
+  (void) $sym_call;
+#endif
+ACEOF
+    my $conftest = $self->lang_build_program( $prologue, $body );
+
+    my $have_decl = $self->compile_if_else( $conftest );
+    if( $have_decl ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+    }
+
+    return $have_decl;
+  };
+
+  return $self->check_cached( $cache_name, "whether $symbol is declared", $check_sub );
+}
+
+=head2 check_decls( symbols, [action-if-found], [action-if-not-found], [prologue = default includes] )
+
+For each of the symbols (with optional function argument types for C++
+overloads), run L<check_decl>. If I<action-if-not-found> is given, it
+is additional code to execute when one of the symbol declarations is
+needed, otherwise I<action-if-found> is executed.
+
+Contrary to GNU autoconf, this method does not declare HAVE_DECL_symbol
+macros for the resulting C<confdefs.h>, because it differs as C<check_decl>
+between compiling languages.
+
+=cut
+
+sub check_decls {
+  my ($self, $symbols, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+
+  my $have_syms = 1;
+  foreach my $symbol (@$symbols) {
+    $have_syms &= $self->check_decl( $symbol, undef, undef, $prologue );
+  }
+
+  if( $have_syms ) {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+      &{$action_if_found}();
+    }
+  }
+  else {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+      &{$action_if_not_found}();
+    }
+  }
+
+  return $have_syms;
+}
+
+sub check_type {
+}
+
+sub check_types {
+}
+
+sub check_member {
+}
+
+sub check_members {
+}
+
 =head2 check_headers
 
 This function uses check_header to check if a set of include files exist in the system and can
@@ -689,35 +796,34 @@ sub check_lib {
     my $have_lib = $self->link_if_else( $conftest );
     $self->{extra_libs} = [ @save_libs ];
 
+    if( $have_lib )
+    {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
+      {
+	&{$action_if_found}();
+      }
+      else
+      {
+	$self->define_var( _have_lib_define_name( $lib ), $have_lib, "defined when library $lib is available" );
+	push( @{$self->{extra_libs}}, $lib );
+      }
+    }
+    else
+    {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
+      {
+	&{$action_if_not_found}();
+      }
+      else
+      {
+	$self->define_var( _have_lib_define_name( $lib ), undef, "defined when library $lib is available" );
+      }
+    }
+
     return $have_lib;
   };
 
-  my $have_lib = $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
-  if( $have_lib )
-  {
-    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
-    {
-      &{$action_if_found}();
-    }
-    else
-    {
-      $self->define_var( _have_lib_define_name( $lib ), $have_lib, "defined when library $lib is available" );
-      push( @{$self->{extra_libs}}, $lib );
-    }
-  }
-  else
-  {
-    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
-    {
-      &{$action_if_not_found}();
-    }
-    else
-    {
-      $self->define_var( _have_lib_define_name( $lib ), undef, "defined when library $lib is available" );
-    }
-  }
-
-  return $have_lib;
+  return $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
 }
 
 =head2 search_libs( function, search-libs, [action-if-found], [action-if-not-found], [other-libs] )
@@ -768,35 +874,29 @@ sub search_libs {
     my @save_libs = @{$self->{extra_libs}};
     my $have_lib = 0;
     foreach my $libstest ( undef, @$libs ) {
+      # XXX would local work on array refs? can we omit @save_libs?
       $self->{extra_libs} = [ @save_libs ];
       defined( $libstest ) and unshift( @{$self->{extra_libs}}, $libstest, @other_libs );
-      $self->link_if_else( $conftest ) and $have_lib = defined( $libstest ) ? $libstest : "none required";
+      $self->link_if_else( $conftest ) and ( $have_lib = defined( $libstest ) ? $libstest : "none required" ) and last;
     }
     $self->{extra_libs} = [ @save_libs ];
-    if( $have_lib and $have_lib ne "none required" ) {
-      unshift( @{$self->{extra_libs}}, $have_lib );
+    if( $have_lib ) {
+      $have_lib eq "none required" or unshift( @{$self->{extra_libs}}, $have_lib );
+
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
     }
 
     return $have_lib;
   };
 
-  my $have_lib = $self->check_cached( $cache_name, "for library containing $func", $check_sub );
-  if( $have_lib )
-  {
-    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
-    {
-      &{$action_if_found}();
-    }
-  }
-  else
-  {
-    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
-    {
-      &{$action_if_not_found}();
-    }
-  }
-
-  return $have_lib;
+  return $self->check_cached( $cache_name, "for library containing $func", $check_sub );
 }
 
 #
