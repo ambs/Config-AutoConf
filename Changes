@@ -3,27 +3,12 @@ Revision history for Config-AutoConf
 0.17    Nov...
         - New object oriented interface (Jens Rehsack)
         - Added new methods: (Jens Rehsack)
-          - checking_msg
-          - result_msg
-          - define_var
-          - compile_if_else
-          - link_if_else
-          - check_cached
-          - cache_val
-          - check_all_headers
-          - check_lib
-          - check_type
-          - check_types
-          - check_member
-          - check_members
-          - check_stdc_headers
-          - check_default_headers
-          - check_decl
-          - check_decls
-          - lang stack for easier interface (push_lang/pop_lang)
-          - lang_build_program
-          - lang_call
-          - search_libs
+          cache_val, check_all_headers, check_cached, check_decl,
+          check_decls, check_default_headers, check_lib, check_member,
+          check_members, check_stdc_headers, check_type, check_types,
+          checking_msg, compile_if_else, define_var,
+          lang_build_program, lang_call, link_if_else, pop_lang,
+          push_lang, result_msg, search_libs
         - check_headers rewritten (Jens Rehsack)
 
 0.16    Sep 23, 2010
