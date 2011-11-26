@@ -1,0 +1,189 @@
+From a95d8c958510b17d3cd49608dff1a5aabcbcbec9 Mon Sep 17 00:00:00 2001
+From: Jens Rehsack <sno@NetBSD.org>
+Date: Thu, 24 Nov 2011 14:09:05 +0100
+Subject: [PATCH 4/8] - refactor check_lib using lang_call for easier function
+ call testing - introduce more modern search_libs
+
+---
+ lib/Config/AutoConf.pm |  141 ++++++++++++++++++++++++++++++++++++++++++++----
+ 1 files changed, 131 insertions(+), 10 deletions(-)
+
+diff --git a/lib/Config/AutoConf.pm b/lib/Config/AutoConf.pm
+index dae1444..31efce2 100644
+--- a/lib/Config/AutoConf.pm
++++ b/lib/Config/AutoConf.pm
+@@ -320,6 +320,38 @@ sub pop_lang {
+   return $self->_set_language( @{ pop @{ $self->{lang} } } );
+ }
+ 
++=head2 lang_call( [prologue], function )
++
++Builds program which simply calls given function.
++When given, prologue is prepended otherwise, the default
++includes are used.
++
++=cut
++
++sub lang_call {
++  my $self = shift->_get_instance();
++  my ($prologue, $function) = @_;
++
++  defined( $prologue ) or $prologue = $self->_default_includes();
++  $prologue .= <<"_ACEOF";
++/* Override any GCC internal prototype to avoid an error.
++   Use char because int might match the return type of a GCC
++   builtin and then its argument prototype would still apply.  */
++#ifdef __cplusplus
++extern "C"
++#endif
++char $function ();
++_ACEOF
++  my $body = "return $function ();";
++  $body = $self->_build_main( $body );
++
++  my $conftest  = $self->_fill_defines();
++     $conftest .= "\n$prologue\n";
++     $conftest .= "\n$body\n";
++
++  return $conftest;
++}
++
+ =head2 lang_build_program( prologue, body )
+ 
+ Builds program for current chosen language. If no prologue is given
+@@ -618,6 +650,22 @@ the name of the function you want to test:
+ 
+ It returns 1 if the function exist, 0 otherwise.
+ 
++I<action-if-found> and I<action-if-not-found> can be CODE references
++whereby the default action in case of function found is to define
++the HAVE_LIBlibrary (all in capitals) preprocessor macro with 1 and
++add $lib to the list of libraries to link.
++
++If linking with library results in unresolved symbols that would be
++resolved by linking with additional libraries, give those libraries
++as the I<other-libs> argument: e.g., C<[qw(Xt X11)]>.
++Otherwise, this routine may fail to detect that library is present,
++because linking the test program can fail with unresolved symbols.
++The other-libraries argument should be limited to cases where it is
++desirable to test for one library in the presence of another that
++is not already in LIBS. 
++
++It's recommended to use L<search_libs> instead of check_lib these days.
++
+ =cut
+ 
+ sub check_lib {
+@@ -627,19 +675,13 @@ sub check_lib {
+   return 0 unless $lib;
+   return 0 unless $func;
+ 
++  scalar( @other_libs ) == 1 and ref( $other_libs[0] ) eq "ARRAY"
++    and @other_libs = @{ $other_libs[0] };
++
+   my $cache_name = $self->_cache_name( "lib", $lib, $func );
+   my $check_sub = sub {
+   
+-    my $prologue = <<"_ACEOF";
+-/* Override any GCC internal prototype to avoid an error.
+-   Use char because int might match the return type of a GCC
+-   builtin and then its argument prototype would still apply.  */
+-#ifdef __cplusplus
+-extern "C"
+-#endif
+-char $func ();
+-_ACEOF
+-    my $conftest = $self->lang_build_program( $prologue, "return $func ()" );
++    my $conftest = $self->lang_call( "", $func );
+ 
+     my @save_libs = @{$self->{extra_libs}};
+     push( @{$self->{extra_libs}}, $lib, @other_libs );
+@@ -677,6 +719,85 @@ _ACEOF
+   return $have_lib;
+ }
+ 
++=head2 search_libs( function, search-libs, [action-if-found], [action-if-not-found], [other-libs] )
++
++Search for a library defining function if it's not already available.
++This equates to calling
++
++    Config::AutoConf->link_if_else(
++        Config::AutoConf->lang_call( "", "$function" ) );
++
++first with no libraries, then for each library listed in search-libs.
++I<search-libs> must be specified as an array reference to avoid
++confusion in argument order.
++
++Prepend -llibrary to LIBS for the first library found to contain function,
++and run I<action-if-found>. If the function is not found, run
++I<action-if-not-found>.
++
++If linking with library results in unresolved symbols that would be
++resolved by linking with additional libraries, give those libraries as
++the I<other-libraries> argument: e.g., C<[qw(Xt X11)]>. Otherwise, this
++method fails to detect that function is present, because linking the
++test program always fails with unresolved symbols.
++
++The result of this test is cached in the ac_cv_search_function variable
++as "none required" if function is already available, as C<0> if no
++library containing function was found, otherwise as the -llibrary option
++that needs to be prepended to LIBS.
++
++=cut
++
++sub search_libs {
++  my ( $self, $func, $libs, $action_if_found, $action_if_not_found, @other_libs ) = @_;
++  ref($self) or $self = $self->_get_instance();
++  
++  ( defined( $libs ) and "ARRAY" eq ref( $libs ) and scalar( @{$libs} ) > 0 )
++    or return 0; # XXX would prefer croak
++  return 0 unless $func;
++
++  scalar( @other_libs ) == 1 and ref( $other_libs[0] ) eq "ARRAY"
++    and @other_libs = @{ $other_libs[0] };
++
++  my $cache_name = $self->_cache_name( "search", $func );
++  my $check_sub = sub {
++  
++    my $conftest = $self->lang_call( "", $func );
++
++    my @save_libs = @{$self->{extra_libs}};
++    my $have_lib = 0;
++    foreach my $libstest ( undef, @$libs ) {
++      $self->{extra_libs} = [ @save_libs ];
++      defined( $libstest ) and unshift( @{$self->{extra_libs}}, $libstest, @other_libs );
++      $self->link_if_else( $conftest ) and $have_lib = defined( $libstest ) ? $libstest : "none required";
++    }
++    $self->{extra_libs} = [ @save_libs ];
++    if( $have_lib and $have_lib ne "none required" ) {
++      unshift( @{$self->{extra_libs}}, $have_lib );
++    }
++
++    return $have_lib;
++  };
++
++  my $have_lib = $self->check_cached( $cache_name, "for library containing $func", $check_sub );
++  if( $have_lib )
++  {
++    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
++    {
++      &{$action_if_found}();
++    }
++  }
++  else
++  {
++    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
++    {
++      &{$action_if_not_found}();
++    }
++  }
++
++  return $have_lib;
++}
++
+ #
+ #
+ # Auxiliary funcs
+-- 
+1.7.7.2
+
