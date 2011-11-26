@@ -1,5 +1,22 @@
 Revision history for Config-AutoConf
 
+0.17    Nov...
+        - New object oriented interface (Jens Rehsack)
+        - Added new methods: (Jens Rehsack)
+          - checking_msg
+          - result_msg
+          - define_var
+          - compile_if_else
+          - link_if_else
+          - check_cached
+          - cache_val
+          - check_all_headers
+          - check_stdc_headers
+          - check_default_headers
+          - lang stack for easier interface (push_lang/pop_lang)
+          - lang_build_program
+        - check_headers rewritten (Jens Rehsack)
+
 0.16    Sep 23, 2010
         - Config::AutoConf::Linker moved to ExtUtils::LibBuilder.
 

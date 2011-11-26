@@ -704,7 +704,7 @@ sub _cache_name {
 
 Alberto Simões, C<< <ambs@cpan.org> >>
 
-Jens Rehsack, C<< < > >>
+Jens Rehsack, C<< <rehsack@cpan.org> >>
 
 =head1 NEXT STEPS
 

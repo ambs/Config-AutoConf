@@ -1,0 +1,627 @@
+From 1425b6f25be4df440dc0a7f4fad04372f62a7f0d Mon Sep 17 00:00:00 2001
+From: Jens Rehsack <sno@NetBSD.org>
+Date: Tue, 15 Nov 2011 10:06:30 +0100
+Subject: [PATCH 1/8] introduce compile_if_else / link_if_else and rewrite
+ check_header to use that instead of compiling and
+ linking on it's own introduce check_cached to avoid
+ redo same things introduce check_all_headers as
+ equivalent to AC_CHECK_HEADERS (check_headers does the
+ wrong thing) and let several haeder checks base on that
+
+---
+ lib/Config/AutoConf.pm |  439 +++++++++++++++++++++++++++++++++++++++++-------
+ t/03.checkheader.t     |    8 +-
+ 2 files changed, 389 insertions(+), 58 deletions(-)
+
+diff --git a/lib/Config/AutoConf.pm b/lib/Config/AutoConf.pm
+index a437074..0f76794 100644
+--- a/lib/Config/AutoConf.pm
++++ b/lib/Config/AutoConf.pm
+@@ -3,10 +3,14 @@ use ExtUtils::CBuilder;
+ use 5.008002;
+ 
+ use Config;
++use Carp qw/croak/;
+ 
+ use File::Temp qw/tempfile/;
++use File::Basename;
+ use File::Spec;
+ 
++use Scalar::Util qw/looks_like_number/; # in core since 5.7.3
++
+ use base 'Exporter';
+ 
+ our @EXPORT = ('$LIBEXT', '$EXEEXT');
+@@ -14,7 +18,8 @@ our @EXPORT = ('$LIBEXT', '$EXEEXT');
+ use warnings;
+ use strict;
+ 
+-our $LIBEXT = ($^O =~ /darwin/i)  ? ".dylib" : ( ($^O =~ /mswin32/i) ? ".dll" : ".so" );
++# XXX detect HP-UX / HPPA
++our $LIBEXT = (defined $Config{dlext}) ? ("." . $Config{dlext}) : ($^O =~ /darwin/i)  ? ".dylib" : ( ($^O =~ /mswin32/i) ? ".dll" : ".so" );
+ our $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
+ 
+ =head1 NAME
+@@ -23,7 +28,7 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
+ 
+ =cut
+ 
+-our $VERSION = '0.16';
++our $VERSION = '0.17';
+ 
+ =head1 ABSTRACT
+ 
+@@ -51,6 +56,35 @@ macros do. To detect a command, to detect a library, etc.
+ 
+ =head1 FUNCTIONS
+ 
++=cut
++
++my $glob_instance;
++
++=head2 new
++
++This function instantiates a new instance of Config::AutoConf, eg. to
++configure child components.
++
++=cut
++
++sub new {
++  my $class = shift;
++  ref $class and $class = ref $class;
++
++  my %instance = (
++    lang => "C",
++    lang_stack => [],
++    lang_supported => {
++      C => "ExtUtils::CBuilder",
++    },
++    cache => {},
++    defines => {},
++  );
++  my $self = bless( \%instance, $class );
++
++  return $self;
++}
++
+ =head2 check_file
+ 
+ This function checks if a file exists in the system and is readable by
+@@ -60,7 +94,7 @@ don't need to use a function call.
+ =cut
+ 
+ sub check_file {
+-  my $class = shift;
++  my $self = shift;
+   my $file = shift;
+ 
+   return (-f $file && -r $file);
+@@ -75,10 +109,10 @@ readable by the user. Returns a boolean.
+ =cut
+ 
+ sub check_files {
+-  my $class = shift;
++  my $self = shift;
+ 
+   for (@_) {
+-    return 0 unless check_file($class, $_)
++    return 0 unless check_file($self, $_)
+   }
+ 
+   return 1;
+@@ -93,7 +127,7 @@ returns the full path for the executable;
+ =cut
+ 
+ sub check_prog {
+-  my $class = shift;
++  my $self = shift;
+   # sanitize ac_prog
+   my $ac_prog = _sanitize(shift());
+   my $PATH = $ENV{PATH};
+@@ -117,10 +151,10 @@ the first found on the system. Returns undef if none was found.
+ =cut
+ 
+ sub check_progs {
+-  my $class = shift;
++  my $self = shift;
+   my @progs = @_;
+   for (@progs) {
+-    my $ans = check_prog($class, $_);
++    my $ans = check_prog($self, $_);
+     return $ans if $ans;
+   }
+   return undef;
+@@ -139,8 +173,8 @@ Returns the full path, if found.
+ =cut
+ 
+ sub check_prog_yacc {
+-	my $class = shift;
+-	my $binary = check_progs(qw/$class bison byacc yacc/);
++	my $self = shift;
++	my $binary = check_progs(qw/$self bison byacc yacc/);
+ 	$binary .= " -y" if ($binary =~ /bison$/);
+ 	return $binary;
+ }
+@@ -159,8 +193,8 @@ Note that it returns the full path, if found.
+ =cut
+ 
+ sub check_prog_awk {
+-  my $class = shift;
+-  return check_progs(qw/$class gawk mawk nawk awk/);
++  my $self = shift;
++  return check_progs(qw/$self gawk mawk nawk awk/);
+ }
+ 
+ 
+@@ -176,16 +210,16 @@ Note that it returns the full path, if found.
+ =cut
+ 
+ sub check_prog_egrep {
+-  my $class = shift;
++  my $self = shift;
+ 
+   my $grep;
+ 
+-  if ($grep = check_prog($class,"grep")) {
++  if ($grep = check_prog($self,"grep")) {
+     my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
+     return "$grep -E" if $ans eq "a\n";
+   }
+ 
+-  if ($grep = check_prog($class, "egrep")) {
++  if ($grep = check_prog($self, "egrep")) {
+     return $grep;
+   }
+   return undef;
+@@ -201,6 +235,162 @@ sub check_cc {
+   ExtUtils::CBuilder->new(quiet => 1)->have_compiler;
+ }
+ 
++=head2 checking_msg
++
++Prints "Checking @_ ..."
++
++=cut
++
++sub checking_msg {
++  my $self = shift;
++  $self->_get_instance()->{quiet} or
++    print "Checking " . join( " ", @_, "..." );
++  return;
++}
++
++=head2 result_msg
++
++Prints result \n
++
++=cut
++
++sub result_msg {
++  my $self = shift;
++  $self->_get_instance()->{quiet} or
++    print join( " ", map { looks_like_number( $_ ) ? ( $_ == 0 ? "no" : ( $_ == 1 ? "yes" : $_ ) ) : $_ } @_ ), "\n";
++  return;
++}
++
++=head2 define_var( $name, $value [, $comment ] )
++
++Defines a check variable for later use in further checks or code to compile
++
++=cut
++
++sub define_var {
++  my $self = shift->_get_instance();
++  my ($name, $value, $comment) = @_;
++
++  defined( $name ) or croak( "Need a name to add a define" );
++
++  $self->{defines}->{$name} = [ $value, $comment ];
++
++  return;
++}
++
++=head2 compile_if_else( $src [, action-if-true [, action-if-false ] ] )
++
++This function trys to compile specified code and runs action-if-true on success
++or action-if-false otherwise.
++
++Returns a boolean value containing check success state.
++
++=cut
++
++sub compile_if_else {
++  my ($self, $src, $action_if_true, $action_if_false) = @_;
++  ref $self or $self = $self->_get_instance();
++  my $builder = $self->_get_builder();
++
++  my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.c');
++
++  print {$fh} $src;
++  close $fh;
++
++  my $obj_file = eval{ $builder->compile(source => $filename) };
++
++  unlink $filename;
++  unlink $obj_file if $obj_file;
++
++  if ($@ || !$obj_file) {
++    defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
++    return 0;
++  }
++
++  defined( $action_if_true ) and "CODE" eq ref( $action_if_true ) and &{$action_if_true}();
++  return 1;
++}
++
++=head2 link_if_else( $src [, action-if-true [, action-if-false ] ] )
++
++This function trys to compile and link specified code and runs action-if-true on success
++or action-if-false otherwise.
++
++Returns a boolean value containing check success state.
++
++=cut
++
++sub link_if_else {
++  my ($self, $src, $action_if_true, $action_if_false) = @_;
++  ref $self or $self = $self->_get_instance();
++  my $builder = $self->_get_builder();
++
++  my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.c');
++
++  print {$fh} $src;
++  close $fh;
++
++  my $obj_file = eval{ $builder->compile(source => $filename) };
++
++  if ($@ || !$obj_file) {
++    unlink $filename;
++    unlink $obj_file if $obj_file;
++    defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
++    return 0;
++  }
++
++  my $exe_file = eval { $builder->link_executable(objects => $obj_file) };
++
++  unlink $filename;
++  unlink $obj_file if $obj_file;
++  unlink $exe_file if $exe_file;
++
++  if ($@ || !$exe_file) {
++    defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
++    return 0;
++  }
++
++  defined( $action_if_true ) and "CODE" eq ref( $action_if_true ) and &{$action_if_true}();
++  return 1;
++}
++
++=head2 check_cached( cache-var, message, sub-to-check )
++
++This function checks whether a specified cache variable is set or not, and if not
++it's going to set it using specified sub-to-check.
++
++=cut
++
++sub check_cached {
++  my ($self, $cache_name, $message, $check_sub) = @_;
++  ref $self or $self = $self->_get_instance();
++
++  $self->checking_msg( $message );
++
++  if( defined($self->{cache}->{$cache_name}) ) {
++    $self->result_msg( "(cached)", $self->{cache}->{$cache_name} );
++  }
++  else {
++    $self->{cache}->{$cache_name} = &{$check_sub}();
++    $self->result_msg( $self->{cache}->{$cache_name} );
++  }
++
++  return $self->{cache}->{$cache_name};
++}
++
++=head2 cache_val
++
++This functions returns the value of a previously check_cached call.
++
++=cut
++
++sub cache_val {
++  my $self = shift->_get_instance();
++  my $cache_name = shift;
++  defined $self->{cache}->{$cache_name} or return;
++  return $self->{cache}->{$cache_name};
++}
++
+ =head2 check_headers
+ 
+ This function uses check_header to check if a set of include files exist in the system and can
+@@ -209,15 +399,21 @@ be included and compiled by the available compiler. Returns the name of the firs
+ =cut
+ 
+ sub check_headers {
+-  my $class = shift;
++  my $self = shift;
+ 
+   for (@_) {
+-    return $_ if check_header($class, $_)
++    return $_ if check_header($self, $_)
+   }
+ 
+   return undef;
+ }
+ 
++sub _have_header_define_name {
++  my $header = $_[0];
++  my $have_name = "HAVE_" . uc($header);
++  $have_name =~ tr/_A-Za-z0-9/_/c;
++  return $have_name;
++}
+ 
+ =head2 check_header
+ 
+@@ -236,55 +432,82 @@ if the header is not present or not available for common usage.
+ =cut
+ 
+ sub check_header {
+-    my $class = shift;
+-    my $header = shift;
+-    
+-    my $cbuilder = ExtUtils::CBuilder->new(quiet => 1);
+-    
+-    return 0 unless $header;
+-    
+-    # print STDERR "Trying to compile a test program to check [$header] availability...\n";
+-    
+-    my $conftest = <<"_ACEOF";
+-    /* Override any gcc2 internal prototype to avoid an error.  */
+-    #ifdef __cplusplus
+-    extern "C"
+-    #endif
+-
++  my $self = shift;
++  my $header = shift;
++  my $pre_inc = shift;
++  
++  return 0 unless $header;
++  my $cache_name = $self->_cache_name( $header );
++  my $check_sub = sub {
++  
++    my $conftest  = $self->_fill_defines();
++       $conftest .= $self->_default_includes();
++    defined $pre_inc
++      and $conftest .= "$pre_inc\n";
++       $conftest .= <<"_ACEOF";
+     #include <$header>
+-
+-    int
+-    main ()
+-    {
+-      return 0;
+-    }    
+ _ACEOF
++       $conftest .= $self->_default_main();
+ 
+-    my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.c');
+-    $filename =~ m!^(.*).c$!;
+-    my $base = $1;
++    my $have_header = $self->compile_if_else( $conftest );
++    $self->define_var( _have_header_define_name( $header ), $have_header ? $have_header : undef, "defined when $header is available" );
+ 
+-    print {$fh} $conftest;
+-    close $fh;
++    return $have_header;
++  };
+ 
+-    my $obj_file = eval{ $cbuilder->compile(source => $filename) };
++  return $self->check_cached( $cache_name, "for $header", $check_sub );
++}
+ 
+-    if ($@ || !$obj_file) {
+-        unlink $filename;
+-        unlink $obj_file if $obj_file;        
+-        return 0         
+-    }
++=head2 check_all_headers
+ 
+-    my $exe_file = eval { $cbuilder->link_executable(objects => $obj_file) };
++This function checks each given header for usability.
+ 
+-    unlink $filename;
+-    unlink $obj_file if $obj_file;
+-    unlink $exe_file if $exe_file;
++=cut
++
++sub check_all_headers {
++  my $self = shift->_get_instance();
++  @_ or return;
++  my $rc = 1;
++  foreach my $header (@_) {
++    $rc &= $self->check_header( $header );
++  }
++  return $rc;
++}
+ 
+-    return 0 if $@;
+-    return 0 unless $exe_file;
++=head2 check_stdc_headers
+ 
+-    return 1;
++Checks for standard C89 headers, namely stdlib.h, stdarg.h, string.h and float.h.
++If those are found, additional all remaining C89 headers are checked: assert.h,
++ctype.h, errno.h, limits.h, locale.h, math.h, setjmp.h, signal.h, stddef.h,
++stdio.h and time.h.
++
++=cut
++
++sub check_stdc_headers {
++  my $self = shift->_get_instance();
++  my $rc = 0;
++  if( $rc = $self->check_all_headers( qw(stdlib.h stdarg.h string.h float.h) ) ) {
++    $rc &= $self->check_all_headers( qw/assert.h ctype.h errno.h limits.h/ );
++    $rc &= $self->check_all_headers( qw/locale.h math.h setjmp.h signal.h/ );
++    $rc &= $self->check_all_headers( qw/stddef.h stdio.h time.h/ );
++  }
++  if( $rc ) {
++    $self->define_var( "STDC_HEADERS", 1, "Define to 1 if you have the ANSI C header files." );
++  }
++  return $rc;
++}
++
++=head2 check_default_headers
++
++This function checks for some default headers, the std c89 haeders and
++sys/types.h, sys/stat.h, memory.h, strings.h, inttypes.h, stdint.h and unistd.h
++
++=cut
++
++sub check_default_headers {
++  my $self = shift->_get_instance();
++  my $rc = $self->check_stdc_headers() and $self->check_all_headers( qw(sys/types.h sys/stat.h memory.h strings.h inttypes.h unistd.h) );
++  return $rc;
+ }
+ 
+ =head2 check_lib
+@@ -300,7 +523,7 @@ It returns 1 if the function exist, 0 otherwise.
+ =cut
+ 
+ sub check_lib {
+-  my $class = shift;
++  my $self = shift;
+   my $lib = shift;
+   my $func = shift;
+ 
+@@ -372,6 +595,108 @@ sub _sanitize {
+   return $x;
+ }
+ 
++sub _get_instance {
++  my $class = shift;
++  ref $class and return $class;
++  defined( $glob_instance ) and ref( $glob_instance ) and return $glob_instance;
++  $glob_instance = $class->new();
++  return $glob_instance;
++}
++
++sub _get_builder {
++  my $self = $_[0]->_get_instance();
++  defined( $self->{lang_supported}->{ $self->{lang} } ) or croak( "Unsupported compile language \"" . $self->{lang} . "\"" );
++  return $self->{lang_supported}->{ $self->{lang} }->new( quiet => 1 );
++}
++
++sub _fill_defines {
++  my ($self, $src, $action_if_true, $action_if_false) = @_;
++  ref $self or $self = $self->_get_instance();
++
++  my $conftest = "";
++  while( my ($defname, $defcnt) = each( %{ $self->{defines} } ) ) {
++    $defcnt->[0] or next;
++    defined $defcnt->[1] and $conftest .= "/* " . $defcnt->[1] . " */\n";
++    $conftest .= join( " ", "#define", $defname, $defcnt->[0] ) . "\n";
++  }
++
++  return $conftest;
++}
++
++#
++# default includes taken from autoconf/headers.m4
++#
++
++sub _default_includes {
++  my $conftest .= <<"_ACEOF";
++#include <stdio.h>
++#ifdef HAVE_SYS_TYPES_H
++# include <sys/types.h>
++#endif
++#ifdef HAVE_SYS_STAT_H
++# include <sys/stat.h>
++#endif
++#ifdef STDC_HEADERS
++# include <stdlib.h>
++# include <stddef.h>
++#else
++# ifdef HAVE_STDLIB_H
++#  include <stdlib.h>
++# endif
++#endif
++#ifdef HAVE_STRING_H
++# if !defined STDC_HEADERS && defined HAVE_MEMORY_H
++#  include <memory.h>
++# endif
++# include <string.h>
++#endif
++#ifdef HAVE_STRINGS_H
++# include <strings.h>
++#endif
++#ifdef HAVE_INTTYPES_H
++# include <inttypes.h>
++#endif
++#ifdef HAVE_STDINT_H
++# include <stdint.h>
++#endif
++#ifdef HAVE_UNISTD_H
++# include <unistd.h>
++#endif
++_ACEOF
++
++  return $conftest;
++}
++
++sub _default_main {
++  my $conftest .= <<"_ACEOF";
++
++  /* Override any gcc2 internal prototype to avoid an error.  */
++  #ifdef __cplusplus
++  extern "C"
++  #endif
++
++  int
++  main (int argc, char **argv)
++  {
++    (void)argc;
++    (void)argv;
++    return 0;
++  }    
++_ACEOF
++
++  return $conftest;
++}
++
++sub _cache_prefix {
++  return "ac";
++}
++
++sub _cache_name {
++  my ($self, $name) = @_;
++  my $cache_name = $self->_cache_prefix() . "_cv_" . $name;
++     $cache_name =~ tr/_A-Za-z0-9/_/c;
++  return $cache_name;
++}
+ 
+ =head1 AUTHOR
+ 
+diff --git a/t/03.checkheader.t b/t/03.checkheader.t
+index 522a528..d6cd25d 100644
+--- a/t/03.checkheader.t
++++ b/t/03.checkheader.t
+@@ -1,6 +1,6 @@
+ # -*- cperl -*-
+ 
+-use Test::More tests => 3;
++use Test::More tests => 5;
+ 
+ use Config::AutoConf;
+ 
+@@ -11,3 +11,9 @@ ok(Config::AutoConf->check_header("stdio.h"));
+ ok(!Config::AutoConf->check_header("astupidheaderfile.h"));
+ is(Config::AutoConf->check_headers("astupidheaderfile.h", "stdio.h"), "stdio.h");
+ 
++my $ac = Config::AutoConf->new();
++eval { $ac->check_default_headers(); };
++ok( !$@, "check_default_headers" ) or diag( $@ );
++## we should find at least a stdio.h ...
++note( "Checking for cache value " . $ac->_cache_name( "stdio.h" ) );
++ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
+-- 
+1.7.7.2
+
