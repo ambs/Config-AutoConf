@@ -1,0 +1,193 @@
+From a41766700cf0e7908b95983bbace61e87e3264e6 Mon Sep 17 00:00:00 2001
+From: Jens Rehsack <sno@NetBSD.org>
+Date: Thu, 24 Nov 2011 14:12:13 +0100
+Subject: [PATCH 5/8] renaming / reordering tests: find progs -> can compile
+ -> can link
+
+---
+ MANIFEST           |    6 +++---
+ t/01.checklib.t    |   13 -------------
+ t/01.checkprog.t   |   27 +++++++++++++++++++++++++++
+ t/02.checkprog.t   |   27 ---------------------------
+ t/02.compile.t     |   19 +++++++++++++++++++
+ t/03.checkheader.t |   19 -------------------
+ t/03.link.t        |   13 +++++++++++++
+ 7 files changed, 62 insertions(+), 62 deletions(-)
+ delete mode 100644 t/01.checklib.t
+ create mode 100644 t/01.checkprog.t
+ delete mode 100644 t/02.checkprog.t
+ create mode 100644 t/02.compile.t
+ delete mode 100644 t/03.checkheader.t
+ create mode 100644 t/03.link.t
+
+diff --git a/MANIFEST b/MANIFEST
+index 3497e9f..41bf9e1 100644
+--- a/MANIFEST
++++ b/MANIFEST
+@@ -7,6 +7,6 @@ lib/Config/AutoConf.pm
+ t/00.load.t
+ t/pod-coverage.t
+ t/pod.t
+-t/01.checklib.t
+-t/02.checkprog.t
+-t/03.checkheader.t
++t/01.checkprog.t
++t/02.compile.t
++t/03.link.t
+diff --git a/t/01.checklib.t b/t/01.checklib.t
+deleted file mode 100644
+index 2f022af..0000000
+--- a/t/01.checklib.t
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# -*- cperl -*-
+-
+-use Test::More tests => 2;
+-
+-use Config::AutoConf;
+-
+-diag("\n\nIgnore junk bellow.\n\n");
+-
+-## OK, we really hope people have -lm around
+-ok(Config::AutoConf->check_lib("m", "atan"));
+-ok(!Config::AutoConf->check_lib("m", "foobar"));
+-
+-
+diff --git a/t/01.checkprog.t b/t/01.checkprog.t
+new file mode 100644
+index 0000000..ccdaf1c
+--- /dev/null
++++ b/t/01.checkprog.t
+@@ -0,0 +1,27 @@
++# -*- cperl -*-
++
++use Test::More tests => 6;
++use Config;
++use Config::AutoConf;
++
++ok(Config::AutoConf->check_prog("perl"));
++
++ok(!Config::AutoConf->check_prog("hopingnobodyhasthiscommand"));
++
++like(Config::AutoConf->check_progs("___perl___", "__perl__", "_perl_", "perl"), qr/perl(.exe)?$/i);
++is(Config::AutoConf->check_progs("___perl___", "__perl__", "_perl_"), undef);	
++
++SKIP: {
++  my $awk;
++  skip "Not sure about your awk", 1 if $^O =~ m!MSWin32! || !$Config{awk};
++  ok(($awk = Config::AutoConf->check_prog_awk));
++  diag("Found AWK as $awk");
++};
++
++SKIP: {
++  my $grep;
++  skip "Not sure about your grep", 1 if $^O =~ m!MSWin32! || !$Config{egrep};
++  ok(($grep = Config::AutoConf->check_prog_egrep));
++  diag("Found EGREP as $grep");
++};
++
+diff --git a/t/02.checkprog.t b/t/02.checkprog.t
+deleted file mode 100644
+index ccdaf1c..0000000
+--- a/t/02.checkprog.t
++++ /dev/null
+@@ -1,27 +0,0 @@
+-# -*- cperl -*-
+-
+-use Test::More tests => 6;
+-use Config;
+-use Config::AutoConf;
+-
+-ok(Config::AutoConf->check_prog("perl"));
+-
+-ok(!Config::AutoConf->check_prog("hopingnobodyhasthiscommand"));
+-
+-like(Config::AutoConf->check_progs("___perl___", "__perl__", "_perl_", "perl"), qr/perl(.exe)?$/i);
+-is(Config::AutoConf->check_progs("___perl___", "__perl__", "_perl_"), undef);	
+-
+-SKIP: {
+-  my $awk;
+-  skip "Not sure about your awk", 1 if $^O =~ m!MSWin32! || !$Config{awk};
+-  ok(($awk = Config::AutoConf->check_prog_awk));
+-  diag("Found AWK as $awk");
+-};
+-
+-SKIP: {
+-  my $grep;
+-  skip "Not sure about your grep", 1 if $^O =~ m!MSWin32! || !$Config{egrep};
+-  ok(($grep = Config::AutoConf->check_prog_egrep));
+-  diag("Found EGREP as $grep");
+-};
+-
+diff --git a/t/02.compile.t b/t/02.compile.t
+new file mode 100644
+index 0000000..d6cd25d
+--- /dev/null
++++ b/t/02.compile.t
+@@ -0,0 +1,19 @@
++# -*- cperl -*-
++
++use Test::More tests => 5;
++
++use Config::AutoConf;
++
++diag("\n\nIgnore junk bellow.\n\n");
++
++## OK, we really hope people have sdtio.h around
++ok(Config::AutoConf->check_header("stdio.h"));
++ok(!Config::AutoConf->check_header("astupidheaderfile.h"));
++is(Config::AutoConf->check_headers("astupidheaderfile.h", "stdio.h"), "stdio.h");
++
++my $ac = Config::AutoConf->new();
++eval { $ac->check_default_headers(); };
++ok( !$@, "check_default_headers" ) or diag( $@ );
++## we should find at least a stdio.h ...
++note( "Checking for cache value " . $ac->_cache_name( "stdio.h" ) );
++ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
+diff --git a/t/03.checkheader.t b/t/03.checkheader.t
+deleted file mode 100644
+index d6cd25d..0000000
+--- a/t/03.checkheader.t
++++ /dev/null
+@@ -1,19 +0,0 @@
+-# -*- cperl -*-
+-
+-use Test::More tests => 5;
+-
+-use Config::AutoConf;
+-
+-diag("\n\nIgnore junk bellow.\n\n");
+-
+-## OK, we really hope people have sdtio.h around
+-ok(Config::AutoConf->check_header("stdio.h"));
+-ok(!Config::AutoConf->check_header("astupidheaderfile.h"));
+-is(Config::AutoConf->check_headers("astupidheaderfile.h", "stdio.h"), "stdio.h");
+-
+-my $ac = Config::AutoConf->new();
+-eval { $ac->check_default_headers(); };
+-ok( !$@, "check_default_headers" ) or diag( $@ );
+-## we should find at least a stdio.h ...
+-note( "Checking for cache value " . $ac->_cache_name( "stdio.h" ) );
+-ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
+diff --git a/t/03.link.t b/t/03.link.t
+new file mode 100644
+index 0000000..2f022af
+--- /dev/null
++++ b/t/03.link.t
+@@ -0,0 +1,13 @@
++# -*- cperl -*-
++
++use Test::More tests => 2;
++
++use Config::AutoConf;
++
++diag("\n\nIgnore junk bellow.\n\n");
++
++## OK, we really hope people have -lm around
++ok(Config::AutoConf->check_lib("m", "atan"));
++ok(!Config::AutoConf->check_lib("m", "foobar"));
++
++
+-- 
+1.7.7.2
+
