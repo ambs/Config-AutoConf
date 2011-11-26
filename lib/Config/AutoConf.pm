@@ -686,11 +686,11 @@ sub check_lib {
 
         my @save_libs = @{$self->{extra_libs}};
         push( @{$self->{extra_libs}}, $lib, @other_libs );
-        my $have_lib = $self->link_if_else( $conftest );
-        $self->{extra_libs} = [ @save_libs ];
+    my $have_lib = $self->link_if_else( $conftest );
+    $self->{extra_libs} = [ @save_libs ];
 
-        return $have_lib;
-    };
+    return $have_lib;
+  };
 
   my $have_lib = $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
   if( $have_lib )
