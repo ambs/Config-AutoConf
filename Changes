@@ -14,6 +14,8 @@ Revision history for Config-AutoConf
           - check_lib
           - check_stdc_headers
           - check_default_headers
+          - check_decl
+          - check_decls
           - lang stack for easier interface (push_lang/pop_lang)
           - lang_build_program
           - lang_call
