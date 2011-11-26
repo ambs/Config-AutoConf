@@ -1,0 +1,42 @@
+From d739f2dde3b6b24ca440e8eac2c532815c484f8f Mon Sep 17 00:00:00 2001
+From: Jens Rehsack <sno@NetBSD.org>
+Date: Thu, 24 Nov 2011 14:46:38 +0100
+Subject: [PATCH 6/8] add independent test for search_libs() (independent from
+ check_lib())
+
+---
+ t/03.link.t |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/t/03.link.t b/t/03.link.t
+index 2f022af..7fdaabb 100644
+--- a/t/03.link.t
++++ b/t/03.link.t
+@@ -1,13 +1,20 @@
+ # -*- cperl -*-
+ 
+-use Test::More tests => 2;
++use Test::More tests => 6;
+ 
+ use Config::AutoConf;
+ 
+ diag("\n\nIgnore junk bellow.\n\n");
+ 
+-## OK, we really hope people have -lm around
+-ok(Config::AutoConf->check_lib("m", "atan"));
+-ok(!Config::AutoConf->check_lib("m", "foobar"));
++my ($ac_1, $ac_2);
++
++ok( $ac_1 = Config::AutoConf->new(), "Instantiating Config::AutoConf for check_lib() tests" );
++ok( $ac_2 = Config::AutoConf->new(), "Instantiating Config::AutoConf for search_libs() tests" );
+ 
++## OK, we really hope people have -lm around
++ok($ac_1->check_lib("m", "atan"), "atan() in -lm");
++ok(!$ac_1->check_lib("m", "foobar"), "foobar() not in -lm");
+ 
++my $where_atan;
++ok( $where_atan = $ac_2->search_libs( "atan", [qw(m)] ), "searching lib for atan()" );
++isnt( $where_atan, 0, "library for atan() found (or none required)" );
+-- 
+1.7.7.2
+
