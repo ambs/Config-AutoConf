@@ -534,7 +534,7 @@ which can be zero-initialized:
 
           Config::AutoConf->check_decl("basename(char *)")
 
-This method caches its result in the ac_cv_decl_<set lang>_symbol variable.
+This method caches its result in the C<ac_cv_decl_E<lt>set langE<gt>>_symbol variable.
 
 =cut
 
@@ -542,6 +542,7 @@ sub check_decl {
   my ($self, $symbol, $action_if_found, $action_if_not_found, $prologue) = @_;
   $self = $self->_get_instance();
   defined( $symbol ) or return; # XXX prefer croak
+  ref( $symbol ) eq "" or return;
   ( my $sym_plain = $symbol ) =~ s/ *\(.*//;
   my $sym_call = $symbol;
   $sym_call =~ s/\(/((/;
@@ -612,16 +613,198 @@ sub check_decls {
   return $have_syms;
 }
 
-sub check_type {
+sub _have_type_define_name {
+  my $type = $_[0];
+  my $have_name = "HAVE_" . uc($type);
+  $have_name =~ tr/*/P/;
+  $have_name =~ tr/_A-Za-z0-9/_/c;
+  return $have_name;
 }
+
+=head2 check_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+Check whether type is defined. It may be a compiler builtin type or defined
+by the includes. I<prologue> should be a series of include directives,
+defaulting to I<default includes>, which are used prior to the type under
+test.
+
+In C, type must be a type-name, so that the expression C<sizeof (type)> is
+valid (but C<sizeof ((type))> is not)
+
+If I<type> type is defined, preprocessor macro HAVE_I<type> (in all
+capitals, with "*" replaced by "P" and spaces and dots replaced by
+underscores) is defined.
+
+This macro caches its result in the C<ac_cv_type_>type variable.
+
+=cut
+
+sub check_type {
+  my ($self, $type, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+  defined( $type ) or return; # XXX prefer croak
+  ref( $type ) eq "" or return;
+
+  my $cache_name = $self->_cache_type_name( "type", $type );
+  my $check_sub = sub {
+  
+    my $body = <<ACEOF;
+  if( sizeof ($type) )
+    return 0;
+ACEOF
+    my $conftest = $self->lang_build_program( $prologue, $body );
+
+    my $have_type = $self->compile_if_else( $conftest );
+    $self->define_var( _have_type_define_name( $type ), $have_type ? $have_type : undef, "defined when $type is available" );
+    if( $have_type ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+    }
+
+    return $have_type;
+  };
+
+  return $self->check_cached( $cache_name, "for $type", $check_sub );
+}
+
+=head2 check_types (types, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+For each type L<check_type> is called to check for type.
+
+If I<action-if-found> is given, it is additionally executed when all of the
+types are found. If I<action-if-not-found> is given, it is executed when one
+of the types is not found.
+
+=cut
 
 sub check_types {
+  my ($self, $types, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+
+  my $have_types = 1;
+  foreach my $type (@$types) {
+    $have_types &= $self->check_type( $type, undef, undef, $prologue );
+  }
+
+  if( $have_types ) {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+      &{$action_if_found}();
+    }
+  }
+  else {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+      &{$action_if_not_found}();
+    }
+  }
+
+  return $have_types;
 }
+
+sub _have_member_define_name {
+  my $member = $_[0];
+  my $have_name = "HAVE_" . uc($member);
+  $have_name =~ tr/_A-Za-z0-9/_/c;
+  return $have_name;
+}
+
+=head2 check_member (member, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+Check whether I<member> is in form of I<aggregate>.I<member> and
+I<member> is a member of the I<aggregate> aggregate. I<prologue>
+should be a series of include directives, defaulting to
+I<default includes>, which are used prior to the aggregate under test.
+
+  Config::AutoConf->check_member(
+    "struct STRUCT_SV.sv_refcnt",
+    undef,
+    sub { Config::AutoConf->fatal_msg( "sv_refcnt member required for struct STRUCT_SV" ); }
+    "#include <EXTERN.h>\n#include <perl.h>"
+  );
+
+If I<aggregate> aggregate has I<member> member, preprocessor
+macro HAVE_I<aggregate>_I<MEMBER> (in all capitals, with spaces
+and dots replaced by underscores) is defined.
+
+This macro caches its result in the C<ac_cv_>aggr_member variable.
+
+=cut
 
 sub check_member {
+  my ($self, $member, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+  defined( $member ) or return; # XXX prefer croak
+  ref( $member ) eq "" or return;
+
+  $member =~ m/^([^.]+)\.([^.]+)$/ or return;
+  my $type = $1;
+  $member = $2;
+
+  my $cache_name = $self->_cache_type_name( "member", $type );
+  my $check_sub = sub {
+  
+    my $body = <<ACEOF;
+  static $type check_aggr;
+  if( check_aggr.$member )
+    return 0;
+ACEOF
+    my $conftest = $self->lang_build_program( $prologue, $body );
+
+    my $have_member = $self->compile_if_else( $conftest );
+    $self->define_var( _have_member_define_name( $member ), $have_member ? $have_member : undef, "defined when $member is available" );
+    if( $have_member ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+    }
+
+    return $have_member;
+  };
+
+  return $self->check_cached( $cache_name, "for $type.$member", $check_sub );
 }
 
+=head2 check_members (members, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+For each member L<check_member> is called to check for member of aggregate.
+
+If I<action-if-found> is given, it is additionally executed when all of the
+aggregate members are found. If I<action-if-not-found> is given, it is
+executed when one of the aggregate members is not found.
+
+=cut
+
 sub check_members {
+  my ($self, $members, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+
+  my $have_members = 1;
+  foreach my $member (@$members) {
+    $have_members &= $self->check_member( $member, undef, undef, $prologue );
+  }
+
+  if( $have_members ) {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+      &{$action_if_found}();
+    }
+  }
+  else {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+      &{$action_if_not_found}();
+    }
+  }
+
+  return $have_members;
 }
 
 =head2 check_headers
@@ -968,6 +1151,47 @@ sub _fill_defines {
 # default includes taken from autoconf/headers.m4
 #
 
+=head2 _default_includes
+
+returns a string containing default includes for program prologue taken
+from autoconf/headers.m4:
+
+  #include <stdio.h>
+  #ifdef HAVE_SYS_TYPES_H
+  # include <sys/types.h>
+  #endif
+  #ifdef HAVE_SYS_STAT_H
+  # include <sys/stat.h>
+  #endif
+  #ifdef STDC_HEADERS
+  # include <stdlib.h>
+  # include <stddef.h>
+  #else
+  # ifdef HAVE_STDLIB_H
+  #  include <stdlib.h>
+  # endif
+  #endif
+  #ifdef HAVE_STRING_H
+  # if !defined STDC_HEADERS && defined HAVE_MEMORY_H
+  #  include <memory.h>
+  # endif
+  # include <string.h>
+  #endif
+  #ifdef HAVE_STRINGS_H
+  # include <strings.h>
+  #endif
+  #ifdef HAVE_INTTYPES_H
+  # include <inttypes.h>
+  #endif
+  #ifdef HAVE_STDINT_H
+  # include <stdint.h>
+  #endif
+  #ifdef HAVE_UNISTD_H
+  # include <unistd.h>
+  #endif
+
+=cut
+
 sub _default_includes {
   my $conftest .= <<"_ACEOF";
 #include <stdio.h>
@@ -1036,7 +1260,15 @@ sub _cache_name {
   my ($self, @names) = @_;
   my $cache_name = join( "_", $self->_cache_prefix(), "cv", @names );
      $cache_name =~ tr/_A-Za-z0-9/_/c;
+  if( $cache_name eq "ac_cv_0_0" ) {
+    Test::More::diag( "break here" );
+  }
   return $cache_name;
+}
+
+sub _cache_type_name  {
+  my ($self, @names) = @_;
+  return $self->_cache_name( map { $_ =~ tr/*/p/; $_ } @names );
 }
 
 sub _get_extra_compiler_flags {
