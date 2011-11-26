@@ -11,6 +11,7 @@ Revision history for Config-AutoConf
           - check_cached
           - cache_val
           - check_all_headers
+          - check_lib
           - check_stdc_headers
           - check_default_headers
           - lang stack for easier interface (push_lang/pop_lang)
