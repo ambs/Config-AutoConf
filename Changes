@@ -12,6 +12,10 @@ Revision history for Config-AutoConf
           - cache_val
           - check_all_headers
           - check_lib
+          - check_type
+          - check_types
+          - check_member
+          - check_members
           - check_stdc_headers
           - check_default_headers
           - check_decl
