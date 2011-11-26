@@ -16,6 +16,8 @@ Revision history for Config-AutoConf
           - check_default_headers
           - lang stack for easier interface (push_lang/pop_lang)
           - lang_build_program
+          - lang_call
+          - search_libs
         - check_headers rewritten (Jens Rehsack)
 
 0.16    Sep 23, 2010
