@@ -979,26 +979,20 @@ sub check_lib {
     my $have_lib = $self->link_if_else( $conftest );
     $self->{extra_libs} = [ @save_libs ];
 
-    if( $have_lib )
-    {
-      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) )
-      {
+    if( $have_lib ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
 	&{$action_if_found}();
       }
-      else
-      {
+      else {
 	$self->define_var( _have_lib_define_name( $lib ), $have_lib, "defined when library $lib is available" );
 	push( @{$self->{extra_libs}}, $lib );
       }
     }
-    else
-    {
-      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) )
-      {
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
 	&{$action_if_not_found}();
       }
-      else
-      {
+      else {
 	$self->define_var( _have_lib_define_name( $lib ), undef, "defined when library $lib is available" );
       }
     }
