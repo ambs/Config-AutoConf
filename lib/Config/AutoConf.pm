@@ -246,30 +246,86 @@ sub check_cc {
   ExtUtils::CBuilder->new(quiet => 1)->have_compiler;
 }
 
-=head2 checking_msg
+=head2 msg_checking
 
 Prints "Checking @_ ..."
 
 =cut
 
-sub checking_msg {
-  my $self = shift;
-  $self->_get_instance()->{quiet} or
+sub msg_checking {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
     print "Checking " . join( " ", @_, "..." );
   return;
 }
 
-=head2 result_msg
+=head2 msg_result
 
 Prints result \n
 
 =cut
 
-sub result_msg {
-  my $self = shift;
-  $self->_get_instance()->{quiet} or
+sub msg_result {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
     print join( " ", map { looks_like_number( $_ ) ? ( $_ == 0 ? "no" : ( $_ == 1 ? "yes" : $_ ) ) : $_ } @_ ), "\n";
   return;
+}
+
+=head2 msg_notice
+
+Prints "configure: " @_ to stdout
+
+=cut
+
+sub msg_notice {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
+    print "configure: " . join( " ", @_ ) . "\n";
+  return;
+}
+
+=head2 msg_warn
+
+Prints "configure: " @_ to stderr
+
+=cut
+
+sub msg_warn {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
+    print STDERR "configure: " . join( " ", @_ ) . "\n";
+  return;
+}
+
+=head2 msg_error
+
+Prints "configure: " @_ to stderr and exits with exit code 0 (tells
+toolchain to stop here and report unsupported enviroment)
+
+=cut
+
+sub msg_error {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
+    print STDERR "configure: " . join( " ", @_ ) . "\n";
+  exit(0); # #toolchain agreement: prevents configure stage to finish
+}
+
+=head2 msg_failure
+
+Prints "configure: " @_ to stderr and exits with exit code 0 (tells
+toolchain to stop here and report unsupported enviroment). Additional
+details are provides in config.log (probably more information in a
+later stage).
+
+=cut
+
+sub msg_failure {
+  my $self = shift->_get_instance();
+  $self->{quiet} or
+    print STDERR "configure: " . join( " ", @_ ) . "\n";
+  exit(0); # #toolchain agreement: prevents configure stage to finish
 }
 
 =head2 define_var( $name, $value [, $comment ] )
@@ -491,14 +547,14 @@ sub check_cached {
   my ($self, $cache_name, $message, $check_sub) = @_;
   ref $self or $self = $self->_get_instance();
 
-  $self->checking_msg( $message );
+  $self->msg_checking( $message );
 
   if( defined($self->{cache}->{$cache_name}) ) {
-    $self->result_msg( "(cached)", $self->{cache}->{$cache_name} );
+    $self->msg_result( "(cached)", $self->{cache}->{$cache_name} );
   }
   else {
     $self->{cache}->{$cache_name} = &{$check_sub}();
-    $self->result_msg( $self->{cache}->{$cache_name} );
+    $self->msg_result( $self->{cache}->{$cache_name} );
   }
 
   return $self->{cache}->{$cache_name};
@@ -723,7 +779,7 @@ I<default includes>, which are used prior to the aggregate under test.
   Config::AutoConf->check_member(
     "struct STRUCT_SV.sv_refcnt",
     undef,
-    sub { Config::AutoConf->fatal_msg( "sv_refcnt member required for struct STRUCT_SV" ); }
+    sub { Config::AutoConf->msg_failure( "sv_refcnt member required for struct STRUCT_SV" ); }
     "#include <EXTERN.h>\n#include <perl.h>"
   );
 
