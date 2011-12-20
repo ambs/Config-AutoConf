@@ -11,6 +11,7 @@ WriteMakefile(
 	      ABSTRACT_FROM => 'lib/Config/AutoConf.pm',
 	      PL_FILES      => {},
 	      PREREQ_PM     => {
+				'Capture::Tiny'      => 0,
 				'ExtUtils::CBuilder' => 0.23,
 				'Test::More'         => 0,
 			       },

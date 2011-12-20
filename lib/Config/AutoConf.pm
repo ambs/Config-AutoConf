@@ -9,6 +9,7 @@ use File::Temp qw/tempfile/;
 use File::Basename;
 use File::Spec;
 
+use Capture::Tiny qw/capture/;
 use Scalar::Util qw/looks_like_number/; # in core since 5.7.3
 
 use base 'Exporter';
@@ -89,7 +90,7 @@ sub new {
       "C" => [],
     },
     extra_link_flags => [],
-    logfile => undef,
+    logfile => "config.log",
   );
   my $self = bless( \%instance, $class );
 
@@ -474,14 +475,24 @@ sub compile_if_else {
   print {$fh} $src;
   close $fh;
 
-  my $obj_file = eval { $builder->compile( source => $filename,
-                                           include_dirs => $self->{extra_include_dirs},
-					   extra_compiler_flags => $self->_get_extra_compiler_flags() ); };
+  my ($obj_file, $errbuf);
+  eval {
+    (undef, $errbuf) = capture(
+      sub {
+        $obj_file = $builder->compile(
+          source => $filename,
+          include_dirs => $self->{extra_include_dirs},
+          extra_compiler_flags => $self->_get_extra_compiler_flags() );
+      }
+    );
+  };
+
+  my $exception = $@;
 
   unlink $filename;
   unlink $obj_file if $obj_file;
 
-  if ($@ || !$obj_file) {
+  if ($exception || !$obj_file) {
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
   }
@@ -509,20 +520,37 @@ sub link_if_else {
   print {$fh} $src;
   close $fh;
 
-  my $obj_file = eval { $builder->compile( source => $filename,
-					   include_dirs => $self->{extra_include_dirs},
-					   extra_compiler_flags => $self->_get_extra_compiler_flags() ); };
+  my ($obj_file, $errbuf);
+  eval {
+    (undef, $errbuf) = capture(
+      sub {
+        $obj_file = $builder->compile(
+          source => $filename,
+          include_dirs => $self->{extra_include_dirs},
+          extra_compiler_flags => $self->_get_extra_compiler_flags() );
+      }
+    );
+  };
 
-  if ($@ || !$obj_file) {
+  my $exception = $@;
+
+  if ($exception || !$obj_file) {
     unlink $filename;
     unlink $obj_file if $obj_file;
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
   }
 
-  my $exe_file = eval { $builder->link_executable( objects => $obj_file,
-                                                   extra_linker_flags => $self->_get_extra_linker_flags() ); };
-
+  my $exe_file;
+  eval {
+    (undef, $errbuf) = capture(
+      sub {
+        $exe_file = $builder->link_executable(
+          objects => $obj_file,
+          extra_linker_flags => $self->_get_extra_linker_flags() );
+      }
+    );
+  };
   unlink $filename;
   unlink $obj_file if $obj_file;
   unlink $exe_file if $exe_file;
