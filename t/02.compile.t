@@ -4,6 +4,11 @@ use Test::More tests => 12;
 
 use Config::AutoConf;
 
+END {
+  -e "config.log" and unlink "config.log";
+  -e "config2.log" and unlink "config2.log";
+}
+
 diag("\n\nIgnore junk bellow.\n\n");
 
 ## OK, we really hope people have sdtio.h around
@@ -12,7 +17,7 @@ ok(!Config::AutoConf->check_header("astupidheaderfile.h"));
 is(Config::AutoConf->check_headers("astupidheaderfile.h", "stdio.h"), "stdio.h");
 
 # check several headers at once
-my $ac = Config::AutoConf->new();
+my $ac = Config::AutoConf->new( logfile => "config2.log" );
 eval { $ac->check_default_headers(); };
 ok( !$@, "check_default_headers" ) or diag( $@ );
 ## we should find at least a stdio.h ...

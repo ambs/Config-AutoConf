@@ -73,6 +73,7 @@ configure child components.
 sub new {
   my $class = shift;
   ref $class and $class = ref $class;
+  my %args = @_;
 
   my %instance = (
     lang => "C",
@@ -91,6 +92,7 @@ sub new {
     },
     extra_link_flags => [],
     logfile => "config.log",
+    %args
   );
   my $self = bless( \%instance, $class );
 
@@ -257,6 +259,7 @@ sub msg_checking {
   my $self = shift->_get_instance();
   $self->{quiet} or
     print "Checking " . join( " ", @_, "..." );
+  $self->_add2log( "Checking " . join( " ", @_, "..." ) );
   return;
 }
 
@@ -475,24 +478,27 @@ sub compile_if_else {
   print {$fh} $src;
   close $fh;
 
-  my ($obj_file, $errbuf);
-  eval {
-    (undef, $errbuf) = capture(
-      sub {
-        $obj_file = $builder->compile(
-          source => $filename,
-          include_dirs => $self->{extra_include_dirs},
-          extra_compiler_flags => $self->_get_extra_compiler_flags() );
-      }
-    );
-  };
+  my ($obj_file, $errbuf, $exception);
+  (undef, $errbuf) = capture {
+    eval {
+      $obj_file = $builder->compile(
+        source => $filename,
+        include_dirs => $self->{extra_include_dirs},
+        extra_compiler_flags => $self->_get_extra_compiler_flags() );
+    };
 
-  my $exception = $@;
+    $exception = $@;
+  };
 
   unlink $filename;
   unlink $obj_file if $obj_file;
 
   if ($exception || !$obj_file) {
+    $self->_add2log( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $errbuf and
+      $self->_add2log( $errbuf );
+    $self->_add2log( "failing program is:\n" . $src );
+
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
   }
@@ -520,21 +526,24 @@ sub link_if_else {
   print {$fh} $src;
   close $fh;
 
-  my ($obj_file, $errbuf);
-  eval {
-    (undef, $errbuf) = capture(
-      sub {
-        $obj_file = $builder->compile(
-          source => $filename,
-          include_dirs => $self->{extra_include_dirs},
-          extra_compiler_flags => $self->_get_extra_compiler_flags() );
-      }
-    );
+  my ($obj_file, $errbuf, $exception);
+  (undef, $errbuf) = capture {
+    eval {
+      $obj_file = $builder->compile(
+        source => $filename,
+        include_dirs => $self->{extra_include_dirs},
+        extra_compiler_flags => $self->_get_extra_compiler_flags() );
+    };
+
+    $exception = $@;
   };
 
-  my $exception = $@;
-
   if ($exception || !$obj_file) {
+    $self->_add2log( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $errbuf and
+      $self->_add2log( $errbuf );
+    $self->_add2log( "failing program is:\n" . $src );
+
     unlink $filename;
     unlink $obj_file if $obj_file;
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
@@ -542,20 +551,25 @@ sub link_if_else {
   }
 
   my $exe_file;
-  eval {
-    (undef, $errbuf) = capture(
-      sub {
-        $exe_file = $builder->link_executable(
-          objects => $obj_file,
-          extra_linker_flags => $self->_get_extra_linker_flags() );
-      }
-    );
+  (undef, $errbuf) = capture {
+    eval {
+      $exe_file = $builder->link_executable(
+        objects => $obj_file,
+        extra_linker_flags => $self->_get_extra_linker_flags() );
+    };
+
+    $exception = $@;
   };
   unlink $filename;
   unlink $obj_file if $obj_file;
   unlink $exe_file if $exe_file;
 
-  if ($@ || !$exe_file) {
+  if ($exception || !$exe_file) {
+    $self->_add2log( "link stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $errbuf and
+      $self->_add2log( $errbuf );
+    $self->_add2log( "failing program is:\n" . $src );
+
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
   }
@@ -1342,6 +1356,26 @@ sub _cache_name {
     Test::More::diag( "break here" );
   }
   return $cache_name;
+}
+
+sub _get_log_fh {
+  my $self = $_[0]->_get_instance();
+  unless( defined( $self->{logfh} ) ) {
+    open( $self->{logfh}, ">", $self->{logfile} ) or croak "Could not open file $self->{logfile}: $!";
+  }
+
+  return $self->{logfh};
+}
+
+sub _add2log {
+  my ($self, @logentries) = @_;
+  ref($self) or $self = $self->_get_instance();
+  $self->_get_log_fh();
+  foreach my $logentry (@logentries) {
+    print {$self->{logfh}} "$logentry\n";
+  }
+
+  return;
 }
 
 sub _cache_type_name  {

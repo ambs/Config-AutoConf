@@ -4,6 +4,8 @@ use Test::More tests => 6;
 use Config;
 use Config::AutoConf;
 
+END { -e "config.log" and unlink "config.log"; }
+
 ok(Config::AutoConf->check_prog("perl"));
 
 ok(!Config::AutoConf->check_prog("hopingnobodyhasthiscommand"));

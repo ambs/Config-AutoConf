@@ -4,6 +4,8 @@ use Test::More tests => 6;
 
 use Config::AutoConf;
 
+END { -e "config.log" and unlink "config.log"; }
+
 diag("\n\nIgnore junk bellow.\n\n");
 
 my ($ac_1, $ac_2);
