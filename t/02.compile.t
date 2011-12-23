@@ -1,12 +1,13 @@
 # -*- cperl -*-
 
-use Test::More tests => 12;
+use Test::More tests => 17;
 
 use Config::AutoConf;
 
 END {
   -e "config.log" and unlink "config.log";
   -e "config2.log" and unlink "config2.log";
+  -e "config.h" and unlink "config.h";
 }
 
 diag("\n\nIgnore junk bellow.\n\n");
@@ -38,3 +39,22 @@ ok( $ac->check_types( ["SV *", "AV *", "HV *" ], undef, undef, $include_perl ), 
 # check perl data structure members
 ok( $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ), "have struct av.sv_any member" );
 ok( $ac->check_members( ["struct hv.sv_any", "struct STRUCT_SV.sv_any"], undef, undef, $include_perl ), "have struct hv.sv_any and struct STRUCT_SV.sv_any members" );
+
+Config::AutoConf->write_config_h();
+ok( -f "config.h", "default config.h created" );
+my $fsize;
+ok( $fsize = (stat("config.h"))[7], "config.h contains content" );
+$ac->write_config_h();
+ok( -f "config.h", "default config.h created" );
+cmp_ok( (stat("config.h"))[7], ">", $fsize, "2nd config.h is bigger than first (more checks made)" );
+
+my ($fh, $fbuf, $dbuf);
+open( $fh, "<", "config.h" );
+{ local $/; $fbuf = <$fh>; }
+close( $fh );
+
+open( $fh, "+>", \$dbuf );
+$ac->write_config_h( $fh );
+close( $fh );
+
+cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
