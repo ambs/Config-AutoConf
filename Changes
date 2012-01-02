@@ -1,38 +1,17 @@
 Revision history for Config-AutoConf
 
-0.17    Nov...
+0.17_01 Jan  2, 2011
         - New object oriented interface (Jens Rehsack)
         - Added new methods: (Jens Rehsack)
-
-          cache_val,
-          check_all_headers,
-          check_cached,
-          check_decl,
-          check_decls,
-          check_default_headers,
-          check_lib,
-          check_member,
-          check_members,  
-          check_stdc_headers,
-          check_type,
-          check_types,
-          compile_if_else,
-          define_var,
-          lang_build_program,
-          lang_call,
-          link_if_else,
-          msg_checking,
-          msg_error,
-          msg_failure,
-          msg_notice,
-          msg_result,
-          msg_warn,
-          pop_lang,
-          push_lang,
-          search_libs,
-          write_config_h
-
+          cache_val, check_all_headers, check_cached, check_decl,
+          check_decls, check_default_headers, check_lib, check_member,
+          check_members, check_stdc_headers, check_type, check_types,
+          compile_if_else, define_var, lang_build_program, lang_call,
+          link_if_else, msg_checking, msg_error, msg_failure,
+          msg_notice, msg_result, msg_warn, pop_lang, push_lang,
+          search_libs, write_config_h
         - check_headers rewritten (Jens Rehsack)
+        - Use proper 'extern "C"' code
 
 0.16    Sep 23, 2010
         - Config::AutoConf::Linker moved to ExtUtils::LibBuilder.

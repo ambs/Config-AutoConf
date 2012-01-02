@@ -31,7 +31,7 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
 
 =cut
 
-our $VERSION = '0.17';
+our $VERSION = '0.17_01';
 
 =head1 ABSTRACT
 
