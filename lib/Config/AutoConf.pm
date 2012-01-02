@@ -450,9 +450,12 @@ sub lang_call {
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
 #ifdef __cplusplus
-extern "C"
+extern "C" {
 #endif
 char $function ();
+#ifdef __cplusplus
+}
+#endif
 _ACEOF
   my $body = "return $function ();";
   $body = $self->_build_main( $body );
@@ -481,7 +484,7 @@ will create
 
   /* Override any gcc2 internal prototype to avoid an error.  */
   #ifdef __cplusplus
-  extern "C"
+  extern "C" {
   #endif
 
   int
@@ -492,6 +495,11 @@ will create
     fputs (hw, stdout);;
     return 0;
   }
+
+  #ifdef __cplusplus
+  }
+  #endif
+
 =cut
 
 sub lang_build_program {
