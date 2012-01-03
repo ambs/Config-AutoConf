@@ -29,14 +29,14 @@ ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
 # as we test a perl module, we expect perl.h available and suitable
 my $include_perl = "#include <EXTERN.h>\n#include <perl.h>";
 
-SKIP {
+SKIP: {
     skip "Constants not defined on this Perl version", 1 if $] < 5.01000;
 
     ok $ac->check_decl( "PERL_VERSION_STRING", undef, undef, $include_perl ),
       "PERL_VERSION_STRING declared";
 }
 
-SKIP {
+SKIP: {
     skip "Constants not defined on this Perl version", 1 if $] <= 5.01000;
 
     ok $ac->check_decls( [qw(PERL_API_REVISION PERL_API_VERSION PERL_API_SUBVERSION)],
