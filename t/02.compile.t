@@ -28,17 +28,40 @@ ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
 # check predeclared symbol
 # as we test a perl module, we expect perl.h available and suitable
 my $include_perl = "#include <EXTERN.h>\n#include <perl.h>";
-ok( $ac->check_decl( "PERL_VERSION_STRING", undef, undef, $include_perl ), "PERL_VERSION_STRING declared" );
-ok( $ac->check_decls( [qw(PERL_API_REVISION PERL_API_VERSION PERL_API_SUBVERSION)], undef, undef, $include_perl ), "PERL_API_* declared" );
-ok( $ac->check_decl( "perl_parse(PerlInterpreter *, XSINIT_t , int , char** , char** )", undef, undef, $include_perl ), "perl_parse() declared" );
+
+SKIP {
+    skip "Constants not defined on this Perl version", 1 if $] < 5.01000;
+
+    ok $ac->check_decl( "PERL_VERSION_STRING", undef, undef, $include_perl ),
+      "PERL_VERSION_STRING declared";
+}
+
+SKIP {
+    skip "Constants not defined on this Perl version", 1 if $] <= 5.01000;
+
+    ok $ac->check_decls( [qw(PERL_API_REVISION PERL_API_VERSION PERL_API_SUBVERSION)],
+                         undef, undef, $include_perl ),
+                           "PERL_API_* declared";
+}
+
+ok $ac->check_decl( "perl_parse(PerlInterpreter *, XSINIT_t , int , char** , char** )",
+                    undef, undef, $include_perl ),
+  "perl_parse() declared";
 
 # check declared types
-ok( $ac->check_type( "I32", undef, undef, $include_perl ), "I32 is valid type" );
-ok( $ac->check_types( ["SV *", "AV *", "HV *" ], undef, undef, $include_perl ), "[SAH]V * are valid types" );
+ok $ac->check_type( "I32", undef, undef, $include_perl ),
+  "I32 is valid type";
+
+ok $ac->check_types( ["SV *", "AV *", "HV *" ], undef, undef, $include_perl ),
+  "[SAH]V * are valid types" ;
 
 # check perl data structure members
-ok( $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ), "have struct av.sv_any member" );
-ok( $ac->check_members( ["struct hv.sv_any", "struct STRUCT_SV.sv_any"], undef, undef, $include_perl ), "have struct hv.sv_any and struct STRUCT_SV.sv_any members" );
+ok $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ),
+  "have struct av.sv_any member";
+
+ok $ac->check_members( ["struct hv.sv_any", "struct STRUCT_SV.sv_any"],
+                       undef, undef, $include_perl ),
+  "have struct hv.sv_any and struct STRUCT_SV.sv_any members";
 
 Config::AutoConf->write_config_h();
 ok( -f "config.h", "default config.h created" );
