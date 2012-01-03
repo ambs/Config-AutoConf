@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.17_02 Jan  3, 2011
+        - Fixed tests that do not run on older Perl version.
+
 0.17_01 Jan  2, 2011
         - New object oriented interface (Jens Rehsack)
         - Added new methods: (Jens Rehsack)
@@ -34,7 +37,7 @@ Revision history for Config-AutoConf
 
 0.12_1	May 18, 2009
 	- Added code to detect how to build a library. 
-      It is a big, really big hack. Still not documented.
+          It is a big, really big hack. Still not documented.
 
 0.11	January 9, 2009
 	- check_prog with better support for Windows machines.
