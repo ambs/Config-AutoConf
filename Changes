@@ -1,6 +1,6 @@
 Revision history for Config-AutoConf
 
-0.17
+0.17    Jan  4, 2011
         - Re-fixed tests that do not run in <= v5.010
 
 0.17_02 Jan  3, 2011
