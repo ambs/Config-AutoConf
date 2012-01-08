@@ -1191,6 +1191,68 @@ sub check_default_headers {
   return $rc;
 }
 
+=head2 check_dirent_header
+
+Check for the following header files. For the first one that is found and
+defines 'DIR', define the listed C preprocessor macro:
+
+  dirent.h 	HAVE_DIRENT_H
+  sys/ndir.h 	HAVE_SYS_NDIR_H
+  sys/dir.h 	HAVE_SYS_DIR_H
+  ndir.h 	HAVE_NDIR_H
+
+The directory-library declarations in your source code should look
+something like the following:
+
+  #include <sys/types.h>
+  #ifdef HAVE_DIRENT_H
+  # include <dirent.h>
+  # define NAMLEN(dirent) strlen ((dirent)->d_name)
+  #else
+  # define dirent direct
+  # define NAMLEN(dirent) ((dirent)->d_namlen)
+  # ifdef HAVE_SYS_NDIR_H
+  #  include <sys/ndir.h>
+  # endif
+  # ifdef HAVE_SYS_DIR_H
+  #  include <sys/dir.h>
+  # endif
+  # ifdef HAVE_NDIR_H
+  #  include <ndir.h>
+  # endif
+  #endif
+
+Using the above declarations, the program would declare variables to be of
+type C<struct dirent>, not C<struct direct>, and would access the length
+of a directory entry name by passing a pointer to a C<struct dirent> to
+the C<NAMLEN> macro.
+
+This macro might be obsolescent, as all current systems with directory
+libraries have C<<E<lt>dirent.hE<gt>>>. Programs supporting only newer OS
+might not need touse this macro.
+
+=cut
+
+sub check_dirent_header {
+  my $self = shift->_get_instance();
+
+  my $cache_name = $self->_cache_name( "dirent_with_DIRP" );
+  my $check_sub = sub {
+  
+    my $have_dirent;
+    foreach my $header (qw(dirent.h sys/ndir.h sys/dir.h ndir.h)) {
+      $have_dirent = $self->_check_header( $header, "#include <sys/types.h>\n", "if ((DIR *) 0) { return 0; }" );
+      $self->define_var( _have_header_define_name( $header ), $have_dirent ? $have_dirent : undef, "defined when $header is available" );
+      $have_dirent and $have_dirent = $header and last;
+    }
+
+    return $have_dirent;
+  };
+
+
+  return $self->check_cached( $cache_name, "for header defining DIR *", $check_sub );
+}
+
 sub _have_lib_define_name {
   my $lib = $_[0];
   my $have_name = "HAVE_LIB" . uc($lib);

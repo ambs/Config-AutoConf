@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 use Config::AutoConf;
 
@@ -24,6 +24,10 @@ ok( !$@, "check_default_headers" ) or diag( $@ );
 ## we should find at least a stdio.h ...
 note( "Checking for cache value " . $ac->_cache_name( "stdio.h" ) );
 ok( $ac->cache_val( $ac->_cache_name( "stdio.h" ) ), "found stdio.h" );
+
+# some complex header tests for wide OS support
+eval { $ac->check_dirent_header(); };
+ok( !$@, "check_dirent_header" ) or diag( $@ );
 
 # check predeclared symbol
 # as we test a perl module, we expect perl.h available and suitable
