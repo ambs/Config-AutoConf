@@ -517,6 +517,106 @@ sub lang_build_program {
   return $conftest;
 }
 
+=head2 push_includes
+
+Adds given list of directories to preprocessor/compiler
+invocation. This is not proved to allow adding directories
+which might be created during the build.
+
+=cut
+
+sub push_includes {
+  my $self = shift->_get_instance();
+  my @includes = @_;
+
+  push( @{$self->{extra_include_dirs}}, @includes );
+
+  return;
+}
+
+=head2 push_preprocess_flags
+
+Adds given flags to the parameter list for preprocessor invocation.
+
+=cut
+
+sub push_preprocess_flags {
+  my $self = shift->_get_instance();
+  my @cpp_flags = @_;
+
+  push( @{$self->{extra_preprocess_flags}}, @cpp_flags );
+
+  return;
+}
+
+=head2 push_compiler_flags
+
+Adds given flags to the parameter list for compiler invocation.
+
+=cut
+
+sub push_compiler_flags {
+  my $self = shift->_get_instance();
+  my @compiler_flags = @_;
+  my $lang = $self->{lang};
+
+  if( scalar( @compiler_flags ) && ( ref($compiler_flags[-1]) eq "HASH" ) ) {
+    my $lang_opt = pop( @compiler_flags );
+    defined( $lang_opt->{lang} ) or croak( "Missing lang attribute in language options" );
+    $lang = $lang_opt->{lang};
+    defined( $self->{lang_supported}->{$lang} ) or croak( "Unsupported language '$lang'" );
+  }
+
+  push( @{$self->{extra_compile_flags}->{$lang}}, @compiler_flags );
+
+  return;
+}
+
+=head2 push_libraries
+
+Adds given list of libraries to the parameter list for linker invocation.
+
+=cut
+
+sub push_libraries {
+  my $self = shift->_get_instance();
+  my @libs = @_;
+
+  push( @{$self->{extra_libs}}, @libs );
+
+  return;
+}
+
+=head2 push_library_paths
+
+Adds given list of library paths to the parameter list for linker invocation.
+
+=cut
+
+sub push_library_paths {
+  my $self = shift->_get_instance();
+  my @libdirs = @_;
+
+  push( @{$self->{extra_lib_dirs}}, @libdirs );
+
+  return;
+}
+
+=head2 push_link_flags
+
+Adds given flags to the parameter list for linker invocation.
+
+=cut
+
+sub push_link_flags {
+  my $self = shift->_get_instance();
+  my @link_flags = @_;
+
+  push( @{$self->{extra_link_flags}}, @link_flags );
+
+  return;
+}
+
 =head2 compile_if_else( $src [, action-if-true [, action-if-false ] ] )
 
 This function trys to compile specified code and runs action-if-true on success
