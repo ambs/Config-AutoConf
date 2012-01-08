@@ -1236,7 +1236,7 @@ might not need touse this macro.
 sub check_dirent_header {
   my $self = shift->_get_instance();
 
-  my $cache_name = $self->_cache_name( "dirent_with_DIRP" );
+  my $cache_name = $self->_cache_name( "header_dirent" );
   my $check_sub = sub {
   
     my $have_dirent;
