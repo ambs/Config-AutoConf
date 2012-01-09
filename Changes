@@ -1,5 +1,13 @@
 Revision history for Config-AutoConf
 
+         - Added new methods: (Jens Rehsack)
+         push_includes
+         push_preprocess_flags
+         push_compiler_flags    
+         push_libraries
+         push_library_paths
+         push_link_flags
+
 0.17    Jan  4, 2011
         - Re-fixed tests that do not run in <= v5.010
 
