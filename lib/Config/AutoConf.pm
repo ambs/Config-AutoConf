@@ -305,7 +305,7 @@ sub msg_warn {
 =head2 msg_error
 
 Prints "configure: " @_ to stderr and exits with exit code 0 (tells
-toolchain to stop here and report unsupported enviroment)
+toolchain to stop here and report unsupported environment)
 
 =cut
 
@@ -319,7 +319,7 @@ sub msg_error {
 =head2 msg_failure
 
 Prints "configure: " @_ to stderr and exits with exit code 0 (tells
-toolchain to stop here and report unsupported enviroment). Additional
+toolchain to stop here and report unsupported environment). Additional
 details are provides in config.log (probably more information in a
 later stage).
 
