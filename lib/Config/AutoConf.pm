@@ -891,7 +891,7 @@ If I<type> type is defined, preprocessor macro HAVE_I<type> (in all
 capitals, with "*" replaced by "P" and spaces and dots replaced by
 underscores) is defined.
 
-This macro caches its result in the C<ac_cv_type_>type variable.
+This method caches its result in the C<ac_cv_type_>type variable.
 
 =cut
 
