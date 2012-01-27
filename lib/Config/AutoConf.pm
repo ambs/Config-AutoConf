@@ -1168,6 +1168,108 @@ sub check_sizeof_types {
   return $have_sizes;
 }
 
+sub _alignof_type_define_name {
+  my $type = $_[0];
+  my $have_name = "ALIGNOF_" . uc($type);
+  $have_name =~ tr/*/P/;
+  $have_name =~ tr/_A-Za-z0-9/_/c;
+  return $have_name;
+}
+
+=head2 check_alignof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+Define ALIGNOF_type to be the alignment in bytes of type. I<type y;> must
+be valid as a structure member declaration or I<type> must be a structure
+member itself.
+
+This method caches its result in the C<ac_cv_alignof_E<lt>set langE<gt>>_type
+variable, with I<*> mapped to C<p> and other characters not suitable for a
+variable name mapped to underscores.
+
+=cut
+
+sub check_alignof_type {
+  my ($self, $type, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+  defined( $type ) or return; # XXX prefer croak
+  ref( $type ) eq "" or return;
+
+  my $cache_name = $self->_cache_type_name( "alignof", $self->{lang}, $type );
+  my $check_sub = sub {
+
+    my @decls = (
+      "#ifndef offsetof",
+      "# ifdef __ICC",
+      "#  define offsetof(type,memb) ((size_t)(((char *)(&((type*)0)->memb)) - ((char *)0)))",
+      "# else",
+      "#  define offsetof(type,memb) ((size_t)&((type*)0)->memb)",
+      "# endif",
+      "#endif"
+    );
+
+    my ($struct, $memb);
+    if( $type =~ m/^([^.]+)\.([^.]+)$/ ) {
+      $struct = $1;
+      $memb = $2;
+    }
+    else {
+      push( @decls, "typedef struct { char x; $type y; } ac__type_alignof_;" );
+      $struct = "ac__type_alignof_";
+      $memb = "y";
+    }
+  
+    my $typealign = $self->_compute_int_compile( "offsetof($struct, $memb)", $prologue, @decls );
+    $self->define_var( _alignof_type_define_name( $type ), $typealign ? $typealign : undef, "defined when alignof($type) is available" );
+    if( $typealign ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+    }
+
+    return $typealign;
+  };
+
+  return $self->check_cached( $cache_name, "for align of $type", $check_sub );
+}
+
+=head2 check_alignof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+For each type L<check_alignof_type> is called to check for align of type.
+
+If I<action-if-found> is given, it is additionally executed when all of the
+aligns of the types could determined. If I<action-if-not-found> is given, it
+is executed when one align of the types could not determined.
+
+=cut
+
+sub check_alignof_types {
+  my ($self, $types, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+
+  my $have_aligns = 1;
+  foreach my $type (@$types) {
+    $have_aligns &= ! ! ($self->check_alignof_type ( $type, undef, undef, $prologue ));
+  }
+
+  if( $have_aligns ) {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+      &{$action_if_found}();
+    }
+  }
+  else {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+      &{$action_if_not_found}();
+    }
+  }
+
+  return $have_aligns;
+}
+
 sub _have_member_define_name {
   my $member = $_[0];
   my $have_name = "HAVE_" . uc($member);

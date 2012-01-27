@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-use Test::More tests => 21;
+use Test::More tests => 24;
 
 use Config::AutoConf;
 
@@ -59,8 +59,8 @@ ok $ac->check_types( ["SV *", "AV *", "HV *" ], undef, undef, $include_perl ),
 my $typesize = $ac->check_sizeof_type( "I32", undef, undef, $include_perl );
 ok $typesize, "I32 has size of " . ($typesize ? $typesize : "n/a") . " bytes";
 
-ok $ac->check_sizeof_types( ["I32", "SV *", "AV *", "HV *", "SV.sv_refcnt" ], undef, undef, $include_perl ),
-  "Could determined sizes for I32, SV *, AV *, HV *, SV.sv_refcnt" ;
+ok $ac->check_sizeof_types( ["I32", "SV *", "AV", "HV *", "SV.sv_refcnt" ], undef, undef, $include_perl ),
+  "Could determined sizes for I32, SV *, AV, HV *, SV.sv_refcnt" ;
 
 my $compute = $ac->compute_int( "-sizeof(I32)", undef, $include_perl );
 ok $typesize + $compute == 0, "Compute (-sizeof(I32)";
@@ -72,6 +72,14 @@ ok $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ),
 ok $ac->check_members( ["struct hv.sv_any", "struct STRUCT_SV.sv_any"],
                        undef, undef, $include_perl ),
   "have struct hv.sv_any and struct STRUCT_SV.sv_any members";
+
+# check aligning
+ok $ac->check_alignof_type( "I32", undef, undef, $include_perl ),
+  "Align of I32";
+ok $ac->check_alignof_type( "SV.sv_refcnt", undef, undef, $include_perl ),
+  "Align of SV.sv_refcnt";
+ok $ac->check_alignof_types( ["I32", "U32", "AV", "HV *", "SV.sv_refcnt" ], undef, undef, $include_perl ),
+  "Could determined sizes for I32, U32, AV, HV *, SV.sv_refcnt" ;
 
 Config::AutoConf->write_config_h();
 ok( -f "config.h", "default config.h created" );

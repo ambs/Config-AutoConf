@@ -12,6 +12,8 @@ Revision history for Config-AutoConf
 	 check_sizeof_type
 	 check_sizeof_types
 	 compute_int
+	 check_alignof_type
+	 check_alignof_types
 
 0.17    Jan  4, 2011
         - Re-fixed tests that do not run in <= v5.010
