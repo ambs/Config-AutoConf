@@ -986,16 +986,16 @@ sub check_types {
 }
 
 sub _compute_int_compile {
-  my ($self, $int, $prologue, @decls) = @_;
+  my ($self, $expr, $prologue, @decls) = @_;
   $self = $self->_get_instance();
 
   my( $body, $conftest, $compile_result );
 
   my ($low, $mid, $high) = (0, 0, 0);
-  if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) >= 0", @decls ) ) ) {
+  if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) >= 0", @decls ) ) ) {
     $low = $mid = 0;
     while( 1 ) {
-      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) <= $mid", @decls ) ) ) {
+      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) <= $mid", @decls ) ) ) {
 	$high = $mid;
 	last;
       }
@@ -1008,10 +1008,10 @@ sub _compute_int_compile {
       $mid = $low * 2;
     }
   }
-  elsif( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) < 0", @decls ) ) ) {
+  elsif( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) < 0", @decls ) ) ) {
     $high = $mid = -1;
     while( 1 ) {
-      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) >= $mid", @decls ) ) ) {
+      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) >= $mid", @decls ) ) ) {
 	$low = $mid;
 	last;
       }
@@ -1026,17 +1026,51 @@ sub _compute_int_compile {
   }
 
   # perform binary search between $low and $high
-  while( $low != $high ) {
+  while( $low <= $high ) {
     $mid = int( ( $high - $low ) / 2 + $low );
-    if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) <= $mid", @decls ) ) ) {
-      $high = $mid;
+    if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) < $mid", @decls ) ) ) {
+      $high = $mid - 1;
+    }
+    elsif( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "((long int)($expr)) > $mid", @decls ) ) ) {
+      $low = $mid + 1;
     }
     else {
-      $low = $mid + 1;
+      return $mid;
     }
   }
 
-  return $low;
+  return;
+}
+
+=head2 compute_int (expression, [action-if-fails], [prologue = default includes], [@decls])
+
+Returns the value of the integer I<expression>. The value should fit in an
+initializer in a C variable of type signed long.  It should be possible
+to evaluate the expression at compile-time. If no includes are specified,
+the default includes are used.
+
+Execute I<action-if-fails> if the value cannot be determined correctly.
+
+=cut
+
+sub compute_int {
+  my ($self, $expr, $action_if_fails, $prologue, @decls) = @_;
+  $self = $self->_get_instance();
+
+  my $cache_name = $self->_cache_type_name( "compute_int", $self->{lang}, $expr );
+  my $check_sub = sub {
+
+    my $val = $self->_compute_int_compile( $expr, $prologue, @decls);
+    unless( defined( $val ) ) {
+      if( defined( $action_if_fails ) and "CODE" eq ref( $action_if_fails ) ) {
+	&{$action_if_fails}();
+      }
+    }
+
+    return $val;
+  };
+
+  return $self->check_cached( $cache_name, "for compute result of ($expr)", $check_sub );
 }
 
 sub _sizeof_type_define_name {

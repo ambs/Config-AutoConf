@@ -11,6 +11,7 @@ Revision history for Config-AutoConf
 	 lang_build_bool_test
 	 check_sizeof_type
 	 check_sizeof_types
+	 compute_int
 
 0.17    Jan  4, 2011
         - Re-fixed tests that do not run in <= v5.010
