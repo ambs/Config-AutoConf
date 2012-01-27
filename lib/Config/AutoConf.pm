@@ -1075,7 +1075,7 @@ sub compute_int {
 
 sub _sizeof_type_define_name {
   my $type = $_[0];
-  my $have_name = "HAVE_" . uc($type);
+  my $have_name = "SIZEOF_" . uc($type);
   $have_name =~ tr/*/P/;
   $have_name =~ tr/_A-Za-z0-9/_/c;
   return $have_name;
