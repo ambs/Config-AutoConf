@@ -517,6 +517,29 @@ sub lang_build_program {
   return $conftest;
 }
 
+=head2 lang_build_bool_test (prologue, test, [@decls])
+
+Builds a static test which will fail to compile when test
+evaluates to false. If C<@decls> is given, it's prepended
+before the test code at the variable definition place.
+
+=cut
+
+sub lang_build_bool_test {
+  my $self = shift->_get_instance();
+  my ($prologue, $test, @decls) = @_;
+
+  defined( $test ) or $test = "1";
+  my $test_code = <<ACEOF;
+  static int test_array [($test) ? 1 : -1 ];
+  test_array [0] = 0
+ACEOF
+  if( @decls ) {
+    $test_code = join( "\n", @decls, $test_code );
+  }
+  return $self->lang_build_program( $prologue, $test_code );
+}
+
 =head2 push_includes
 
 Adds given list of directories to preprocessor/compiler
@@ -960,6 +983,155 @@ sub check_types {
   }
 
   return $have_types;
+}
+
+sub _compute_int_compile {
+  my ($self, $int, $prologue, @decls) = @_;
+  $self = $self->_get_instance();
+
+  my( $body, $conftest, $compile_result );
+
+  my ($low, $mid, $high) = (0, 0, 0);
+  if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) >= 0", @decls ) ) ) {
+    $low = $mid = 0;
+    while( 1 ) {
+      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) <= $mid", @decls ) ) ) {
+	$high = $mid;
+	last;
+      }
+      $low = $mid + 1;
+      # avoid overflow
+      if( $low <= $mid ) {
+	$low = 0;
+	last;
+      }
+      $mid = $low * 2;
+    }
+  }
+  elsif( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) < 0", @decls ) ) ) {
+    $high = $mid = -1;
+    while( 1 ) {
+      if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) >= $mid", @decls ) ) ) {
+	$low = $mid;
+	last;
+      }
+      $high = $mid - 1;
+      # avoid overflow
+      if( $mid < $high ) {
+	$high = 0;
+	last;
+      }
+      $mid = $high * 2;
+    }
+  }
+
+  # perform binary search between $low and $high
+  while( $low != $high ) {
+    $mid = int( ( $high - $low ) / 2 + $low );
+    if( $self->compile_if_else( $self->lang_build_bool_test( $prologue, "($int) <= $mid", @decls ) ) ) {
+      $high = $mid;
+    }
+    else {
+      $low = $mid + 1;
+    }
+  }
+
+  return $low;
+}
+
+sub _sizeof_type_define_name {
+  my $type = $_[0];
+  my $have_name = "HAVE_" . uc($type);
+  $have_name =~ tr/*/P/;
+  $have_name =~ tr/_A-Za-z0-9/_/c;
+  return $have_name;
+}
+
+=head2 check_sizeof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+Checks for the size of the specified type by compiling. If no size can
+determined, I<action-if-not-found> is invoked when given. Otherwise
+I<action-if-found> is invoked and C<SIZEOF_type> is defined using the
+determined size.
+
+In opposition to GNU AutoConf, this method can determine size of structure
+members, eg.
+
+  $ac->check_sizeof_type( "SV.sv_refcnt", undef, undef, $include_perl );
+  # or
+  $ac->check_sizeof_type( "struct utmpx.ut_id", undef, undef, "#include <utmpx.h>" );
+
+This method caches its result in the C<ac_cv_sizeof_E<lt>set langE<gt>>_type variable.
+
+=cut
+
+sub check_sizeof_type {
+  my ($self, $type, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+  defined( $type ) or return; # XXX prefer croak
+  ref( $type ) eq "" or return;
+
+  my $cache_name = $self->_cache_type_name( "sizeof", $self->{lang}, $type );
+  my $check_sub = sub {
+
+    my @decls;
+    if( $type =~ m/^([^.]+)\.([^.]+)$/ ) {
+      my $struct = $1;
+      $type = "_ac_test_aggr.$2";
+      my $decl = "static $struct _ac_test_aggr;";
+      push( @decls, $decl );
+    }
+  
+    my $typesize = $self->_compute_int_compile( "sizeof($type)", $prologue, @decls );
+    $self->define_var( _sizeof_type_define_name( $type ), $typesize ? $typesize : undef, "defined when sizeof($type) is available" );
+    if( $typesize ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+    }
+
+    return $typesize;
+  };
+
+  return $self->check_cached( $cache_name, "for size of $type", $check_sub );
+}
+
+=head2 check_sizeof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+
+For each type L<check_sizeof_type> is called to check for size of type.
+
+If I<action-if-found> is given, it is additionally executed when all of the
+sizes of the types could determined. If I<action-if-not-found> is given, it
+is executed when one size of the types could not determined.
+
+=cut
+
+sub check_sizeof_types {
+  my ($self, $types, $action_if_found, $action_if_not_found, $prologue) = @_;
+  $self = $self->_get_instance();
+
+  my $have_sizes = 1;
+  foreach my $type (@$types) {
+    $have_sizes &= ! ! ($self->check_sizeof_type ( $type, undef, undef, $prologue ));
+  }
+
+  if( $have_sizes ) {
+    if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+      &{$action_if_found}();
+    }
+  }
+  else {
+    if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+      &{$action_if_not_found}();
+    }
+  }
+
+  return $have_sizes;
 }
 
 sub _have_member_define_name {

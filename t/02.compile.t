@@ -1,12 +1,12 @@
 # -*- cperl -*-
 
-use Test::More tests => 18;
+use Test::More tests => 20;
 
 use Config::AutoConf;
 
 END {
   -e "config.log" and unlink "config.log";
-  -e "config2.log" and unlink "config2.log";
+  # -e "config2.log" and unlink "config2.log";
   -e "config.h" and unlink "config.h";
 }
 
@@ -54,6 +54,13 @@ ok $ac->check_type( "I32", undef, undef, $include_perl ),
 
 ok $ac->check_types( ["SV *", "AV *", "HV *" ], undef, undef, $include_perl ),
   "[SAH]V * are valid types" ;
+
+# check size of perl types
+my $typesize = $ac->check_sizeof_type( "I32", undef, undef, $include_perl );
+ok $typesize, "I32 has size of " . ($typesize ? $typesize : "n/a") . " bytes";
+
+ok $ac->check_sizeof_types( ["I32", "SV *", "AV *", "HV *", "SV.sv_refcnt" ], undef, undef, $include_perl ),
+  "Could determined sizes for I32, SV *, AV *, HV *, SV.sv_refcnt" ;
 
 # check perl data structure members
 ok $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ),

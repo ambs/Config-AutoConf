@@ -8,6 +8,9 @@ Revision history for Config-AutoConf
          push_library_paths
          push_link_flags
          check_dirent_header
+	 lang_build_bool_test
+	 check_sizeof_type
+	 check_sizeof_types
 
 0.17    Jan  4, 2011
         - Re-fixed tests that do not run in <= v5.010
