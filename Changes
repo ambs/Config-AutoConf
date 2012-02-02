@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+         - Added new methods:
+           check_lm
+
 0.18   Feb  2, 2011
          - msg_methods msg prefix can be configured.
          - Added new methods: (Jens Rehsack)
