@@ -1772,7 +1772,17 @@ sub _get_instance {
 sub _get_builder {
   my $self = $_[0]->_get_instance();
   defined( $self->{lang_supported}->{ $self->{lang} } ) or croak( "Unsupported compile language \"" . $self->{lang} . "\"" );
-  return $self->{lang_supported}->{ $self->{lang} }->new( quiet => 1 );
+
+  my $builder = $self->{lang_supported}->{ $self->{lang} }->new( quiet => 1 );
+
+  ## XXX - Temporarily. Will try to send upstream
+  if ($self->{lang} eq "C") {
+      $builder->{config}{ccflags} =~ s/-arch \S+//g;
+      $builder->{config}{lddlflags} =~ s/-arch \S+//g;
+      $builder->{config}{ldflags} =~ s/-arch \S+//g;
+  }
+  return $builder;
+
 }
 
 sub _set_language {
