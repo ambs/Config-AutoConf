@@ -31,7 +31,7 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
 
 =cut
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 =head1 ABSTRACT
 
@@ -76,6 +76,7 @@ sub new {
   my %args = @_;
 
   my %instance = (
+    msg_prefix => 'configure: ',
     lang => "C",
     lang_stack => [],
     lang_supported => {
@@ -285,7 +286,7 @@ Prints "configure: " @_ to stdout
 sub msg_notice {
   my $self = shift->_get_instance();
   $self->{quiet} or
-    print "configure: " . join( " ", @_ ) . "\n";
+    print $self->{msg_prefix} . join( " ", @_ ) . "\n";
   return;
 }
 
@@ -298,7 +299,7 @@ Prints "configure: " @_ to stderr
 sub msg_warn {
   my $self = shift->_get_instance();
   $self->{quiet} or
-    print STDERR "configure: " . join( " ", @_ ) . "\n";
+    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
   return;
 }
 
@@ -312,7 +313,7 @@ toolchain to stop here and report unsupported environment)
 sub msg_error {
   my $self = shift->_get_instance();
   $self->{quiet} or
-    print STDERR "configure: " . join( " ", @_ ) . "\n";
+    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
   exit(0); # #toolchain agreement: prevents configure stage to finish
 }
 
@@ -328,7 +329,7 @@ later stage).
 sub msg_failure {
   my $self = shift->_get_instance();
   $self->{quiet} or
-    print STDERR "configure: " . join( " ", @_ ) . "\n";
+    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
   exit(0); # #toolchain agreement: prevents configure stage to finish
 }
 
