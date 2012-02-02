@@ -259,7 +259,7 @@ Prints "Checking @_ ..."
 sub msg_checking {
   my $self = shift->_get_instance();
   $self->{quiet} or
-    print "Checking " . join( " ", @_, "..." );
+    print "Checking " . join(" ", @_) . "... ";
   $self->_add2log( "Checking " . join( " ", @_, "..." ) );
   return;
 }
