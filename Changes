@@ -1,9 +1,9 @@
 Revision history for Config-AutoConf
 
-         - Added new methods:
-           check_lm
+0.19   Feb  7, 2012
+         - Added new method, check_lm
 
-0.18   Feb  2, 2011
+0.18   Feb  2, 2012
          - msg_methods msg prefix can be configured.
          - Added new methods: (Jens Rehsack)
            check_alignof_type, check_alignof_types, check_sizeof_type,
@@ -12,13 +12,13 @@ Revision history for Config-AutoConf
            push_libraries, push_library_paths, push_link_flags,
            push_preprocess_flags.
 
-0.17    Jan  4, 2011
+0.17    Jan  4, 2012
         - Re-fixed tests that do not run in <= v5.010
 
-0.17_02 Jan  3, 2011
+0.17_02 Jan  3, 2012
         - Fixed tests that do not run on older Perl version.
 
-0.17_01 Jan  2, 2011
+0.17_01 Jan  2, 2012
         - New object oriented interface (Jens Rehsack)
         - Added new methods: (Jens Rehsack)
           cache_val, check_all_headers, check_cached, check_decl,
