@@ -7,6 +7,7 @@ use 5.008002;
 WriteMakefile(
 	      NAME          => 'Config::AutoConf',
 	      AUTHOR        => 'Alberto Simoes <ambs@cpan.org>',
+              LICENSE       => 'perl',
 	      VERSION_FROM  => 'lib/Config/AutoConf.pm',
 	      ABSTRACT_FROM => 'lib/Config/AutoConf.pm',
 	      PL_FILES      => {},
