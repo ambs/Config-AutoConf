@@ -1,5 +1,7 @@
 Revision history for Config-AutoConf
 
+         - Make POD tests author only.
+
 0.19   Feb  7, 2012
          - Added new method, check_lm
 

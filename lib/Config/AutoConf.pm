@@ -23,7 +23,7 @@ use strict;
 our $LIBEXT = (defined $Config{dlext}) ? ("." . $Config{dlext}) : ($^O =~ /darwin/i)  ? ".dylib" : ( ($^O =~ /mswin32/i) ? ".dll" : ".so" );
 our $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
 
-=encoding utf-8
+=encoding UTF-8
 
 =head1 NAME
 
