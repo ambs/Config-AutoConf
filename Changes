@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.22   Dec 11, 2012
+         - Flag some more tests as TODO.
+
 0.21   Dec 2, 2012
          - Flag -lm tests as 'TODO' as they might fail in some Windows
            machines
