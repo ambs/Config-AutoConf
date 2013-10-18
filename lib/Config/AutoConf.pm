@@ -1,6 +1,6 @@
 package Config::AutoConf;
 use ExtUtils::CBuilder;
-use 5.008002;
+use 5.006;
 
 use Config;
 use Carp qw/croak/;

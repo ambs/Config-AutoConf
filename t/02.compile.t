@@ -94,7 +94,13 @@ open( $fh, "<", "config.h" );
 { local $/; $fbuf = <$fh>; }
 close( $fh );
 
-open( $fh, "+>", \$dbuf );
+if ($] < 5.008) {
+  require IO::String;
+  $fh = IO::String->new($dbuf);
+}
+else {
+  open( $fh, "+>", \$dbuf );
+}
 $ac->write_config_h( $fh );
 close( $fh );
 

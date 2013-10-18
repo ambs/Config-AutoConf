@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
-use 5.008002;
+use 5.006;
 
 WriteMakefile(
 	      NAME          => 'Config::AutoConf',
@@ -15,6 +15,8 @@ WriteMakefile(
 				'Capture::Tiny'      => 0,
 				'ExtUtils::CBuilder' => 0.23,
 				'Test::More'         => 0,
+				( $] < 5.008 ? ('IO::String' => 0 ) : () ),
+
 			       },
 	      dist          => {
 				COMPRESS => 'gzip -9f',
