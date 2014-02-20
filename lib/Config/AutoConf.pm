@@ -127,7 +127,7 @@ sub check_files {
   my $self = shift;
 
   for (@_) {
-    return 0 unless check_file($self, $_)
+    return 0 unless $self->check_file($_)
   }
 
   return 1;
@@ -169,7 +169,7 @@ sub check_progs {
   my $self = shift;
   my @progs = @_;
   for (@progs) {
-    my $ans = check_prog($self, $_);
+    my $ans = check_prog($_);
     return $ans if $ans;
   }
   return undef;
@@ -188,10 +188,10 @@ Returns the full path, if found.
 =cut
 
 sub check_prog_yacc {
-	my $self = shift;
-	my $binary = check_progs(qw/$self bison byacc yacc/);
-	$binary .= " -y" if ($binary =~ /bison$/);
-	return $binary;
+  my $self = shift;
+  my $binary = $self->check_progs(qw/bison byacc yacc/);
+  $binary .= " -y" if ($binary =~ /bison$/);
+  return $binary;
 }
 
 =head2 check_prog_awk
@@ -209,7 +209,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_awk {
   my $self = shift;
-  return check_progs(qw/$self gawk mawk nawk awk/);
+  return $self->check_progs(qw/gawk mawk nawk awk/);
 }
 
 
@@ -229,12 +229,12 @@ sub check_prog_egrep {
 
   my $grep;
 
-  if ($grep = check_prog($self,"grep")) {
+  if ($grep = $self->check_prog("grep")) {
     my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
     return "$grep -E" if $ans eq "a\n";
   }
 
-  if ($grep = check_prog($self, "egrep")) {
+  if ($grep = $self->check_prog("egrep")) {
     return $grep;
   }
   return undef;
@@ -1383,7 +1383,7 @@ sub check_headers {
   my $self = shift;
 
   for (@_) {
-    return $_ if check_header($self, $_)
+    return $_ if $self->check_header($_)
   }
 
   return undef;
