@@ -240,6 +240,19 @@ sub check_prog_egrep {
   return undef;
 }
 
+=head2 check_prog_pkg_config
+
+Checks for C<pkg-config> program. No additional tests are made for it ...
+
+=cut
+ 
+sub check_prog_pkg_config {
+  my $self = shift->_get_instance();
+  my $cache_name = $self->_cache_name("prog", "pkg-config");
+  return $self->check_cached( $cache_name, "for pkg-config",
+    sub {$self->check_prog("pkg-config")} );
+}
+
 =head2 check_cc
 
 This function checks if you have a running C compiler.
