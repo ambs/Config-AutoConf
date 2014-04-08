@@ -144,12 +144,12 @@ returns the full path for the executable;
 sub check_prog {
   my $self = shift;
   # sanitize ac_prog
-  my $ac_prog = _sanitize(shift());
+  my $ac_prog = _sanitize(shift @_);
   my $PATH = $ENV{PATH};
   my $p;
 
-	my $ext = "";
-	$ext = ".exe" if $^O =~ /mswin/i;
+  my $ext = "";
+  $ext = ".exe" if $^O =~ /mswin/i;
 	
   for $p (split /$Config{path_sep}/,$PATH) {
     my $cmd = File::Spec->catfile($p,$ac_prog.$ext);
@@ -169,7 +169,7 @@ sub check_progs {
   my $self = shift;
   my @progs = @_;
   for (@progs) {
-    my $ans = check_prog($_);
+    my $ans = $self->check_prog($_);
     return $ans if $ans;
   }
   return undef;
