@@ -6,7 +6,7 @@ use Config::AutoConf;
 
 END { -e "config.log" and unlink "config.log"; }
 
-diag("\n\nIgnore junk bellow.\n\n");
+diag("\n\nIgnore junk below.\n\n");
 
 my ($ac_1, $ac_2);
 
