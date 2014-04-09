@@ -1,20 +1,26 @@
 Revision history for Config-AutoConf
 
-0.22   Dec 11, 2012
+0.23   2014-04-nn
+        - bring back to 5.6 (Peter 'Ribasushi' Rabbitson)
+        - introduce pkg-config based checks (Jens 'Sno' Rehsack)
+        - fix spurious invocation issues (Jens 'Sno' Rehsack)
+        - Changes reformatted as per CPAN::Changes::Spec
+
+0.22   2012-12-11
          - Flag some more tests as TODO.
 
-0.21   Dec 2, 2012
+0.21   2012-12-02
          - Flag -lm tests as 'TODO' as they might fail in some Windows
            machines
 
-0.20   Nov 9, 2012
+0.20   2012-11-09
          - Add stdint.h into check_default_headers
          - Make POD tests author only.
 
-0.19   Feb  7, 2012
+0.19   2012-02-07
          - Added new method, check_lm
 
-0.18   Feb  2, 2012
+0.18   2012-02-02
          - msg_methods msg prefix can be configured.
          - Added new methods: (Jens Rehsack)
            check_alignof_type, check_alignof_types, check_sizeof_type,
@@ -23,13 +29,13 @@ Revision history for Config-AutoConf
            push_libraries, push_library_paths, push_link_flags,
            push_preprocess_flags.
 
-0.17    Jan  4, 2012
+0.17    2012-01-04
         - Re-fixed tests that do not run in <= v5.010
 
-0.17_02 Jan  3, 2012
+0.17_02 2012-01-03
         - Fixed tests that do not run on older Perl version.
 
-0.17_01 Jan  2, 2012
+0.17_01 2012-01-02
         - New object oriented interface (Jens Rehsack)
         - Added new methods: (Jens Rehsack)
           cache_val, check_all_headers, check_cached, check_decl,
@@ -42,62 +48,62 @@ Revision history for Config-AutoConf
         - check_headers rewritten (Jens Rehsack)
         - Use proper 'extern "C"' code
 
-0.16    Sep 23, 2010
+0.16    2010-09-23
         - Config::AutoConf::Linker moved to ExtUtils::LibBuilder.
 
-0.15    Mar  8, 2010
+0.15    2010-05-08
         - Config::AutoConf::Linker more silent.
 
-0.14    Feb 14, 2010
+0.14    2010-02-14
         - Added rewind to Linker.pm module. This code is still under heavy tests.
 
-0.13    Jun  2, 2009
+0.13    2009-06-02
         - First stable release with code to detect how to build a C dynamic library.
 
-0.12_3  Jun  1, 2009
+0.12_3  2009-06-01
         - Trying other way arround to change LD_LIBRARY_PATH under
           t/04, that was failing under FreeBSD.
 
-0.12_2  May 19, 2009
+0.12_2  2009-05-19
 	- Added t/04 that was missing from MANIFEST
 
-0.12_1	May 18, 2009
+0.12_1	2009-05-18
 	- Added code to detect how to build a library. 
           It is a big, really big hack. Still not documented.
 
-0.11	January 9, 2009
+0.11	2009-01-09
 	- check_prog with better support for Windows machines.
 
-0.10    September 3, 2008
+0.10    2008-09-03
 	- Removed the tilde on my name, from Makefile.PL.
 	  Was generating some weird results on VMS and Solaris.
 
-0.09    April 23, 2008
+0.09    2008-04-23
 	- Added 'check_headers?' methods to check for C heading files;
 	- fixed the deletion of .c files created by failing tests;
 	- Require perl 5.8.1 and ExtUtils::CBuilder 0.23
 
-0.08    March 29, 2008
+0.08    2008-03-29
 	- require a 5.8 Perl 
 
-0.07	March 21, 2008
+0.07	2008-03-19
 	- re-factored some tests to make them Win-aware
 
-0.06	March 19, 2008
+0.06	2008-03-19
 	- added -quiet option to ExtUtils::CBuilder for less noise when 
 	  detecting things.
 
-0.05	March 18, 2008
+0.05	2008-03-18
 	- added 'check_prog_yacc' method to check for a yacc implementation
 	  (see POD)
 
-0.04	March 18, 2008
+0.04	2008-03-18
 	- adapt to new ExtUtils::CBuilder API
 
-0.03	August 12, 2005
+0.03	2005-08-12
 	- Added 'check_file' and 'check_files' methods (kind of stupid methods)
 
-0.02	February 14, 2005
+0.02	2005-02-14
 	- Moved from ExtUtils:: to Config::
 
 Previous releases

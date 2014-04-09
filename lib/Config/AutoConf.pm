@@ -1,6 +1,6 @@
 package Config::AutoConf;
 use ExtUtils::CBuilder;
-use 5.008002;
+use 5.006;
 
 use Config;
 use Carp qw/croak/;
@@ -8,6 +8,7 @@ use Carp qw/croak/;
 use File::Temp qw/tempfile/;
 use File::Basename;
 use File::Spec;
+use Text::ParseWords qw//;
 
 use Capture::Tiny qw/capture/;
 use Scalar::Util qw/looks_like_number/; # in core since 5.7.3
@@ -31,7 +32,7 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
 
 =cut
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 =head1 ABSTRACT
 
@@ -127,7 +128,7 @@ sub check_files {
   my $self = shift;
 
   for (@_) {
-    return 0 unless check_file($self, $_)
+    return 0 unless $self->check_file($_)
   }
 
   return 1;
@@ -144,12 +145,12 @@ returns the full path for the executable;
 sub check_prog {
   my $self = shift;
   # sanitize ac_prog
-  my $ac_prog = _sanitize(shift());
+  my $ac_prog = _sanitize(shift @_);
   my $PATH = $ENV{PATH};
   my $p;
 
-	my $ext = "";
-	$ext = ".exe" if $^O =~ /mswin/i;
+  my $ext = "";
+  $ext = ".exe" if $^O =~ /mswin/i;
 	
   for $p (split /$Config{path_sep}/,$PATH) {
     my $cmd = File::Spec->catfile($p,$ac_prog.$ext);
@@ -169,7 +170,7 @@ sub check_progs {
   my $self = shift;
   my @progs = @_;
   for (@progs) {
-    my $ans = check_prog($self, $_);
+    my $ans = $self->check_prog($_);
     return $ans if $ans;
   }
   return undef;
@@ -188,10 +189,10 @@ Returns the full path, if found.
 =cut
 
 sub check_prog_yacc {
-	my $self = shift;
-	my $binary = check_progs(qw/$self bison byacc yacc/);
-	$binary .= " -y" if ($binary =~ /bison$/);
-	return $binary;
+  my $self = shift;
+  my $binary = $self->check_progs(qw/bison byacc yacc/);
+  $binary .= " -y" if ($binary =~ /bison$/);
+  return $binary;
 }
 
 =head2 check_prog_awk
@@ -209,7 +210,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_awk {
   my $self = shift;
-  return check_progs(qw/$self gawk mawk nawk awk/);
+  return $self->check_progs(qw/gawk mawk nawk awk/);
 }
 
 
@@ -229,15 +230,28 @@ sub check_prog_egrep {
 
   my $grep;
 
-  if ($grep = check_prog($self,"grep")) {
+  if ($grep = $self->check_prog("grep")) {
     my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
     return "$grep -E" if $ans eq "a\n";
   }
 
-  if ($grep = check_prog($self, "egrep")) {
+  if ($grep = $self->check_prog("egrep")) {
     return $grep;
   }
   return undef;
+}
+
+=head2 check_prog_pkg_config
+
+Checks for C<pkg-config> program. No additional tests are made for it ...
+
+=cut
+ 
+sub check_prog_pkg_config {
+  my $self = shift->_get_instance();
+  my $cache_name = $self->_cache_name("prog", "pkg-config");
+  return $self->check_cached( $cache_name, "for pkg-config",
+    sub {$self->check_prog("pkg-config")} );
 }
 
 =head2 check_cc
@@ -1383,7 +1397,7 @@ sub check_headers {
   my $self = shift;
 
   for (@_) {
-    return $_ if check_header($self, $_)
+    return $_ if $self->check_header($_)
   }
 
   return undef;
@@ -1747,6 +1761,73 @@ sub search_libs {
   return $self->check_cached( $cache_name, "for library containing $func", $check_sub );
 }
 
+=head2 pkg_config_package_flags($package, [action-if-found], [action-if-not-found])
+
+Search for pkg-config flags for package as specified. The flags which are
+extracted are C<--cflags> and C<--libs>. The extracted flags are appended
+to the global C<extra_compile_flags> and C<extra_link_flags>, respectively.
+
+Call it with the package you're looking for and optional callback whether
+found or not.
+
+=cut
+
+my $_pkg_config_prog;
+
+sub _pkg_config_flag
+{
+    defined $_pkg_config_prog or croak("pkg_config_prog required");
+    my @pkg_config_args = @_;
+    my ( $stdout, $stderr, $exit ) =
+      capture { system( $_pkg_config_prog, @pkg_config_args ); };
+    chomp $stdout;
+    0 == $exit and return $stdout;
+    return;
+}
+
+sub pkg_config_package_flags
+{
+    my ( $self, $package, $action_if_found, $action_if_not_found ) = @_;
+    $self = $self->_get_instance();
+    (my $pkgpfx = $package) =~ s/^(\w+).*?$/$1/;
+    my $cache_name = $self->_cache_name( "pkg", $pkgpfx );
+    defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
+    my $check_sub = sub {
+	my ( @pkg_cflags, @pkg_libs );
+
+        (my $ENV_CFLAGS = $package) =~ s/^(\w+).*?$/$1_CFLAGS/;
+	my $CFLAGS = defined $ENV{$ENV_CFLAGS} ? $ENV{$ENV_CFLAGS}
+	                                       : _pkg_config_flag($package, "--cflags");
+        $CFLAGS and @pkg_cflags = (
+            map {
+                $_ =~ s/^\s+//;
+                $_ =~ s/\s+$//;
+                Text::ParseWords::shellwords $_;
+              } split( m/\n/, $CFLAGS )
+          )
+	  and push @{ $self->{extra_preprocess_flags} }, @pkg_cflags;
+	  # and push @{ $self->{extra_compile_flags}->{"C"} }, @pkg_cflags;
+# XXX extra_preprocess_flags
+
+        (my $ENV_LIBS = $package) =~ s/^(\w+).*?$/$1_LIBS/;
+        # do not separate between libs and extra (for now) - they come with -l prepended
+	my $LIBS = defined $ENV{$ENV_LIBS} ? $ENV{$ENV_LIBS}
+	                                   : _pkg_config_flag($package, "--libs");
+        $LIBS and @pkg_libs = (
+            map {
+                $_ =~ s/^\s+//;
+                $_ =~ s/\s+$//;
+                Text::ParseWords::shellwords $_;
+              } split( m/\n/, $LIBS )
+          )
+	  and push @{ $self->{extra_link_flags} }, @pkg_libs;
+
+	return join(" ", @pkg_cflags, @pkg_libs);
+    };
+
+    return $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
+}
+
 #
 #
 # Auxiliary funcs
@@ -1935,9 +2016,6 @@ sub _cache_name {
   my ($self, @names) = @_;
   my $cache_name = join( "_", $self->_cache_prefix(), "cv", @names );
      $cache_name =~ tr/_A-Za-z0-9/_/c;
-  if( $cache_name eq "ac_cv_0_0" ) {
-    Test::More::diag( "break here" );
-  }
   return $cache_name;
 }
 

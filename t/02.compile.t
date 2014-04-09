@@ -10,7 +10,7 @@ END {
   -e "config.h" and unlink "config.h";
 }
 
-diag("\n\nIgnore junk bellow.\n\n");
+diag("\n\nIgnore junk below.\n\n");
 
 ## OK, we really hope people have sdtio.h around
 ok(Config::AutoConf->check_header("stdio.h"));
@@ -94,7 +94,13 @@ open( $fh, "<", "config.h" );
 { local $/; $fbuf = <$fh>; }
 close( $fh );
 
-open( $fh, "+>", \$dbuf );
+if ($] < 5.008) {
+  require IO::String;
+  $fh = IO::String->new($dbuf);
+}
+else {
+  open( $fh, "+>", \$dbuf );
+}
 $ac->write_config_h( $fh );
 close( $fh );
 
