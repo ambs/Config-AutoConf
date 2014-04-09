@@ -1,9 +1,9 @@
 Changes
 lib/Config/AutoConf.pm
-lib/Config/AutoConf.pm.save
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
+META.json
 META.yml
 README
 t/00.load.t
