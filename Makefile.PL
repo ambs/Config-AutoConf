@@ -77,7 +77,7 @@ sub WriteMakefile1
     {
         if ( $params{BUILD_REQUIRES} )
         {
-            $params{BUILD_REQUIRES} = { %{ $params{BUILD_REQUIRES} }, %{ $params{TEST_REQUIRES} } };
+            $params{BUILD_REQUIRES} = { %{ $params{BUILD_REQUIRES} }, %{ delete $params{TEST_REQUIRES} } };
         }
         else
         {
