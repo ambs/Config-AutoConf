@@ -1,0 +1,67 @@
+{
+   "abstract" : "A module to implement some of AutoConf macros in pure perl.",
+   "author" : [
+      "Alberto Simoes <ambs@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 6.94, CPAN::Meta::Converter version 2.140640",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Config-AutoConf",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {}
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Test::CPAN::Changes" : "0",
+            "Test::CheckManifest" : "0",
+            "Test::Pod" : "0",
+            "Test::Pod::Coverage" : "0",
+            "Test::Pod::Spelling::CommonMistakes" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Clone" : "0"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "0.9"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "mailto" : "bug-config-autoconf@rt.cpan.org",
+         "web" : "http://rt.cpan.org/Public/Dist/Display.html?Name=Config-AutoConf"
+      },
+      "homepage" : "https://metacpan.org/release/Config-AutoConf",
+      "license" : [
+         "http://dev.perl.org/licenses/"
+      ],
+      "repository" : {
+         "type" : "git",
+         "web" : "https://github.com/ambs/Config-AutoConf"
+      }
+   },
+   "version" : "0.23"
+}
