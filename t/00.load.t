@@ -3,9 +3,5 @@
 use Test::More tests => 1;
 
 BEGIN {
-  use_ok( 'Config::AutoConf' );
+  use_ok( 'Config::AutoConf' ) or BAIL_OUT("Can't load Config::AutoConf");
 }
-
-
-
-
