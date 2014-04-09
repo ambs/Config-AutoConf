@@ -8,6 +8,7 @@ use Carp qw/croak/;
 use File::Temp qw/tempfile/;
 use File::Basename;
 use File::Spec;
+use Text::ParseWords qw//;
 
 use Capture::Tiny qw/capture/;
 use Scalar::Util qw/looks_like_number/; # in core since 5.7.3
@@ -1760,6 +1761,73 @@ sub search_libs {
   return $self->check_cached( $cache_name, "for library containing $func", $check_sub );
 }
 
+=head2 pkg_config_package_flags($package, [action-if-found], [action-if-not-found])
+
+Search for pkg-config flags for package as specified. The flags which are
+extracted are C<--cflags> and C<--libs>. The extracted flags are appended
+to the global C<extra_compile_flags> and C<extra_link_flags>, respectively.
+
+Call it with the package you're looking for and optional callback whether
+found or not.
+
+=cut
+
+my $_pkg_config_prog;
+
+sub _pkg_config_flag
+{
+    defined $_pkg_config_prog or croak("pkg_config_prog required");
+    my @pkg_config_args = @_;
+    my ( $stdout, $stderr, $exit ) =
+      capture { system( $_pkg_config_prog, @pkg_config_args ); };
+    chomp $stdout;
+    0 == $exit and return $stdout;
+    return;
+}
+
+sub pkg_config_package_flags
+{
+    my ( $self, $package, $action_if_found, $action_if_not_found ) = @_;
+    $self = $self->_get_instance();
+    (my $pkgpfx = $package) =~ s/^(\w+).*?$/$1/;
+    my $cache_name = $self->_cache_name( "pkg", $pkgpfx );
+    defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
+    my $check_sub = sub {
+	my ( @pkg_cflags, @pkg_libs );
+
+        (my $ENV_CFLAGS = $package) =~ s/^(\w+).*?$/$1_CFLAGS/;
+	my $CFLAGS = defined $ENV{$ENV_CFLAGS} ? $ENV{$ENV_CFLAGS}
+	                                       : _pkg_config_flag($package, "--cflags");
+        $CFLAGS and @pkg_cflags = (
+            map {
+                $_ =~ s/^\s+//;
+                $_ =~ s/\s+$//;
+                Text::ParseWords::shellwords $_;
+              } split( m/\n/, $CFLAGS )
+          )
+	  and push @{ $self->{extra_preprocess_flags} }, @pkg_cflags;
+	  # and push @{ $self->{extra_compile_flags}->{"C"} }, @pkg_cflags;
+# XXX extra_preprocess_flags
+
+        (my $ENV_LIBS = $package) =~ s/^(\w+).*?$/$1_LIBS/;
+        # do not separate between libs and extra (for now) - they come with -l prepended
+	my $LIBS = defined $ENV{$ENV_LIBS} ? $ENV{$ENV_LIBS}
+	                                   : _pkg_config_flag($package, "--libs");
+        $LIBS and @pkg_libs = (
+            map {
+                $_ =~ s/^\s+//;
+                $_ =~ s/\s+$//;
+                Text::ParseWords::shellwords $_;
+              } split( m/\n/, $LIBS )
+          )
+	  and push @{ $self->{extra_link_flags} }, @pkg_libs;
+
+	return join(" ", @pkg_cflags, @pkg_libs);
+    };
+
+    return $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
+}
+
 #
 #
 # Auxiliary funcs
@@ -1948,9 +2016,6 @@ sub _cache_name {
   my ($self, @names) = @_;
   my $cache_name = join( "_", $self->_cache_prefix(), "cv", @names );
      $cache_name =~ tr/_A-Za-z0-9/_/c;
-  if( $cache_name eq "ac_cv_0_0" ) {
-    Test::More::diag( "break here" );
-  }
   return $cache_name;
 }
 
