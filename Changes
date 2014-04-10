@@ -1,6 +1,11 @@
 Revision history for Config-AutoConf
 
-0.23   2014-04-nn
+0.24   2014-04-11
+        - Fix lost dependencies during Makefile.PL update
+        - add even core dependencies to support older Perls
+        - adjust $LIBEXT/$EXEEXT initialization to support HP-UX/HPPA
+
+0.23   2014-04-10
         - bring back to 5.6 (Peter 'Ribasushi' Rabbitson)
         - introduce pkg-config based checks (Jens 'Sno' Rehsack)
         - fix spurious invocation issues (Jens 'Sno' Rehsack)
