@@ -5,16 +5,13 @@ use ExtUtils::MakeMaker;
 use 5.006;
 
 my %RUN_DEPS = (
-                 'Clone' => 0,
-               );
-my %CONFIGURE_DEPS = (
-                       'ExtUtils::MakeMaker' => 0,
-                     );
+    'Capture::Tiny'      => 0,
+    'ExtUtils::CBuilder' => 0.23,
+);
+my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
 my %BUILD_DEPS = ();
 
-my %TEST_DEPS = (
-                  'Test::More' => 0.90,
-                );
+my %TEST_DEPS = ('Test::More' => 0.90);
 
 WriteMakefile1(
     MIN_PERL_VERSION => '5.006',
