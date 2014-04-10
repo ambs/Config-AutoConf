@@ -5,8 +5,16 @@ use ExtUtils::MakeMaker;
 use 5.006;
 
 my %RUN_DEPS = (
+    'Carp'               => 0,
     'Capture::Tiny'      => 0,
+    'Config'             => 0,
+    'Cwd'                => 0,
+    'File::Basename'     => 0,
+    'File::Spec'         => 0,
+    'File::Temp'         => 0,
     'ExtUtils::CBuilder' => 0.23,
+    'Scalar::Util'       => 0,
+    'Text::ParseWords'   => 0,
 );
 my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
 my %BUILD_DEPS = ();
