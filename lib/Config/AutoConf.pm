@@ -11,7 +11,25 @@ use File::Spec;
 use Text::ParseWords qw//;
 
 use Capture::Tiny qw/capture/;
-use Scalar::Util qw/looks_like_number/; # in core since 5.7.3
+
+# in core since 5.7.3
+eval { Scalar::Util qw/looks_like_number/; };
+__PACKAGE__->can("looks_like_number") or eval <<'EOP';
+# from PP part of Params::Util
+sub looks_like_number {
+    local $_ = shift;
+
+    # checks from perlfaq4
+    return 0 if !defined($_);
+    if (ref($_)) {
+	    return overload::Overloaded($_) ? defined(0 + $_) : 0;
+    }
+    return 1 if (/^[+-]?[0-9]+$/); # is a +/- integer
+    return 1 if (/^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/); # a C float
+    return 1 if ($] >= 5.008 and /^(Inf(inity)?|NaN)$/i) or ($] >= 5.006001 and /^Inf$/i);
+
+    0;
+EOP
 
 use base 'Exporter';
 
@@ -20,9 +38,20 @@ our @EXPORT = ('$LIBEXT', '$EXEEXT');
 use warnings;
 use strict;
 
-# XXX detect HP-UX / HPPA
-our $LIBEXT = (defined $Config{dlext}) ? ("." . $Config{dlext}) : ($^O =~ /darwin/i)  ? ".dylib" : ( ($^O =~ /mswin32/i) ? ".dll" : ".so" );
-our $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
+# PA-RISC1.1-thread-multi
+my %special_dlext = (
+  darwin => ".dylib",
+  MSWin32 => ".dll",
+  ($Config{archname} =~ m/PA-RISC/i ? ("hpux" => ".sl") : ()),
+);
+
+our ($LIBEXT, $EXEEXT);
+
+defined $LIBEXT
+  or $LIBEXT = defined $Config{so} ? "." . $Config{so} :
+               defined $special_dlext{$^O} ? $special_dlext{$^O} : ".so";
+defined $EXEEXT
+  or $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
 
 =encoding UTF-8
 
