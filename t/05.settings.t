@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-use Test::More tests => 3;
+use Test::More;
 
 use Config::AutoConf;
 
@@ -13,7 +13,8 @@ END { -e "config.log" and unlink "config.log"; }
 diag("\n\nIgnore junk below.\n\n");
 
 my $pkg_config = Config::AutoConf->check_prog_pkg_config;
-$pkg_config or plan skip_all => "No pkg-config";
+
+plan $pkg_config ? (tests => 3) : (plan skip_all => "No pkg-config");
 
 SCOPE: {
   local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir( dirname(abs_path($0)), "testdata" );
