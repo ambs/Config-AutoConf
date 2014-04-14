@@ -1,5 +1,9 @@
 Revision history for Config-AutoConf
 
+0.25   2014-04-14
+		- Fix settings test that would complain with a duplicate plan
+		  when no PkgConfig was present.
+
 0.24   2014-04-11
         - Fix lost dependencies during Makefile.PL update
         - add even core dependencies to support older Perls
