@@ -1,8 +1,12 @@
 Revision history for Config-AutoConf
 
+0.26    2014-xx-xx
+        - Fix pkg-config test as it's intended (allow testing without
+          pkg-config binary)
+
 0.25   2014-04-14
-		- Fix settings test that would complain with a duplicate plan
-		  when no PkgConfig was present.
+        - Fix settings test that would complain with a duplicate plan
+          when no PkgConfig was present.
 
 0.24   2014-04-11
         - Fix lost dependencies during Makefile.PL update

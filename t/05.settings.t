@@ -2,7 +2,7 @@
 
 use Test::More;
 
-use Config::AutoConf;
+use Config::AutoConf tests => 3;
 
 use Cwd qw(abs_path);
 use File::Basename qw(dirname);
@@ -14,15 +14,15 @@ diag("\n\nIgnore junk below.\n\n");
 
 my $pkg_config = Config::AutoConf->check_prog_pkg_config;
 
-plan $pkg_config ? (tests => 3) : (plan skip_all => "No pkg-config");
-
-SCOPE: {
+SKIP: {
+  $pkg_config or skip "No pkg-config", 1;
   local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir( dirname(abs_path($0)), "testdata" );
   my $foo_flags = Config::AutoConf->pkg_config_package_flags("foo");
   is($foo_flags, "-I/base/path/include/foo-0 -L/base/path/lib/foo -lfoo");
 }
 
 SCOPE: {
+  # this section intensionally works without pkg-config binary
   local $ENV{bar_CFLAGS} = "-Ibar";
   local $ENV{bar_LIBS} = "-lbar";
   my $bar_flags = Config::AutoConf->pkg_config_package_flags("bar>2");
