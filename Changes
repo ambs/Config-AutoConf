@@ -3,6 +3,7 @@ Revision history for Config-AutoConf
 0.26    2014-xx-xx
         - Fix pkg-config test as it's intended (allow testing without
           pkg-config binary)
+        - fix C::AC complains about unset results
 
 0.25   2014-04-14
         - Fix settings test that would complain with a duplicate plan
