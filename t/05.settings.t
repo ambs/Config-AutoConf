@@ -1,8 +1,8 @@
 # -*- cperl -*-
 
-use Test::More;
+use Test::More tests => 3;
 
-use Config::AutoConf tests => 3;
+use Config::AutoConf;
 
 use Cwd qw(abs_path);
 use File::Basename qw(dirname);
