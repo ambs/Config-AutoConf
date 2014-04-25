@@ -1,6 +1,10 @@
 Revision history for Config-AutoConf
 
-0.26    2014-xx-xx
+0.27    2014-04-25
+        - fix broken Changes
+        - add some fixes for older Perls
+
+0.26    2014-04-23
         - Fix pkg-config test as it's intended (allow testing without
           pkg-config binary)
         - fix C::AC complains about unset results
