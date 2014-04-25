@@ -21,6 +21,7 @@ my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
 my %BUILD_DEPS = ();
 
 my %TEST_DEPS = ('Test::More' => 0.90);
+$] < 5.008 and $TEST_DEPS{'IO::String'} = 0;
 
 WriteMakefile1(
     META_ADD         => {
