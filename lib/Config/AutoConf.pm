@@ -12,7 +12,7 @@ use Text::ParseWords qw//;
 use Capture::Tiny qw/capture/;
 
 # in core since 5.7.3
-eval { use Scalar::Util qw/looks_like_number/; };
+eval "use Scalar::Util qw/looks_like_number/;";
 __PACKAGE__->can("looks_like_number") or eval <<'EOP';
 # from PP part of Params::Util
 sub looks_like_number {
