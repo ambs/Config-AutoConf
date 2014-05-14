@@ -1,4 +1,14 @@
 package Config::AutoConf;
+
+use warnings;
+use strict;
+
+use base 'Exporter';
+
+our @EXPORT = ('$LIBEXT', '$EXEEXT');
+
+use constant QUOTE => do { $^O eq "MSWin32" ? q["] : q['] };
+
 use ExtUtils::CBuilder;
 
 use Config;
@@ -31,13 +41,6 @@ sub looks_like_number {
 }
 EOP
 
-use base 'Exporter';
-
-our @EXPORT = ('$LIBEXT', '$EXEEXT');
-
-use warnings;
-use strict;
-
 # PA-RISC1.1-thread-multi
 my %special_dlext = (
   darwin => ".dylib",
@@ -51,7 +54,7 @@ defined $LIBEXT
   or $LIBEXT = defined $Config{so} ? "." . $Config{so} :
                defined $special_dlext{$^O} ? $special_dlext{$^O} : ".so";
 defined $EXEEXT
-  or $EXEEXT = ($^O =~ /mswin32/i) ? ".exe" : "";
+  or $EXEEXT = ($^O eq "MSWin32") ? ".exe" : "";
 
 =encoding UTF-8
 
@@ -205,6 +208,13 @@ sub check_progs {
   return undef;
 }
 
+sub _append_prog_args {
+  my $self = shift;
+  my $prog = shift;
+  (scalar Text::ParseWords::shellwords $prog) > 1 and $prog = QUOTE . $prog . QUOTE;
+  return join(" ", $prog, @_);
+}
+
 =head2 check_prog_yacc
 
 From the autoconf documentation,
@@ -220,7 +230,8 @@ Returns the full path, if found.
 sub check_prog_yacc {
   my $self = shift;
   my $binary = $self->check_progs(qw/bison byacc yacc/);
-  defined $binary and $binary =~ /bison$/ and $binary .= " -y";
+  defined $binary and $binary =~ /bison(?:\.(?:exe|com|bat|cmd))?$/
+    and $binary = $self->_append_prog_args($binary, "-y");
   return $binary;
 }
 
@@ -259,14 +270,16 @@ sub check_prog_egrep {
 
   my $grep;
 
-  if ($grep = $self->check_prog("grep")) {
-    my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
-    return "$grep -E" if $ans eq "a\n";
-  }
-
   if ($grep = $self->check_prog("egrep")) {
     return $grep;
   }
+
+  if ($grep = $self->check_prog("grep")) {
+    my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
+    chomp $ans;
+    $ans eq "a" and return $self->_append_prog_args($grep,  "-E");
+  }
+
   return undef;
 }
 
