@@ -166,11 +166,15 @@ sub check_files {
   return 1;
 }
 
+my @exe_exts = ( $^O eq "MSWin32" ? qw(.exe .com .bat .cmd) : ("") );
 
-=head2 check_prog
+=head2 check_prog(prog,[dirlist])
 
 This function checks for a program with the supplied name. In success
 returns the full path for the executable;
+
+An optional array reference containing a list of directories to be searched
+instead of $PATH is gracefully honored.
 
 =cut
 
@@ -178,34 +182,43 @@ sub check_prog {
   my $self = shift;
   # sanitize ac_prog
   my $ac_prog = _sanitize(shift @_);
-  my $PATH = $ENV{PATH};
-  my $p;
+  my @dirlist;
+  @_ and scalar @_ > 1 and @dirlist = @_;
+  @_ and scalar @_ == 1 and ref $_[0] eq "ARRAY" and @dirlist = @{$_[0]};
+  @dirlist or @dirlist = split(/$Config{path_sep}/,$ENV{PATH});
 
-  my $ext = "";
-  $ext = ".exe" if $^O =~ /mswin/i;
-	
-  for $p (split /$Config{path_sep}/,$PATH) {
-    my $cmd = File::Spec->catfile($p,$ac_prog.$ext);
-    return $cmd if -x $cmd;
+  for my $p (@dirlist) {
+    for my $e (@exe_exts) {
+      my $cmd = File::Spec->catfile($p,$ac_prog.$e);
+      return $cmd if -x $cmd;
+    }
   }
-  return undef;
+  return;
 }
 
-=head2 check_progs
+=head2 check_progs(progs, [dirlist])
 
 This function takes a list of program names. Returns the full path for
 the first found on the system. Returns undef if none was found.
+
+An optional array reference containing a list of directories to be searched
+instead of $PATH is gracefully honored.
 
 =cut
 
 sub check_progs {
   my $self = shift;
+  my @dirlist;
+  scalar @_ > 1 and ref $_[-1] eq "ARRAY" and @dirlist = @{pop @_};
+  @dirlist or @dirlist = split(/$Config{path_sep}/,$ENV{PATH});
+
   my @progs = @_;
   for (@progs) {
-    my $ans = $self->check_prog($_);
+    defined $_ or next;
+    my $ans = $self->check_prog($_, \@dirlist);
     return $ans if $ans;
   }
-  return undef;
+  return;
 }
 
 sub _append_prog_args {
@@ -221,7 +234,8 @@ From the autoconf documentation,
 
   If `bison' is found, set [...] `bison -y'.
   Otherwise, if `byacc' is found, set [...] `byacc'. 
-  Otherwise set [...] `yacc'.
+  Otherwise set [...] `yacc'.  The result of this test can be influenced
+  by setting the variable YACC or the cache variable ac_cv_prog_YACC.
 
 Returns the full path, if found.
 
@@ -229,10 +243,18 @@ Returns the full path, if found.
 
 sub check_prog_yacc {
   my $self = shift;
-  my $binary = $self->check_progs(qw/bison byacc yacc/);
-  defined $binary and $binary =~ /bison(?:\.(?:exe|com|bat|cmd))?$/
-    and $binary = $self->_append_prog_args($binary, "-y");
-  return $binary;
+
+# my ($self, $cache_name, $message, $check_sub) = @_;
+
+  my $cache_name = $self->_cache_name("prog", "YACC");
+  return $self->check_cached( $cache_name, "for yacc",
+    sub {
+      defined $ENV{YACC} and return $ENV{YACC};
+      my $binary = $self->check_progs(qw/bison byacc yacc/);
+      defined $binary and $binary =~ /bison(?:\.(?:exe|com|bat|cmd))?$/
+        and $binary = $self->_append_prog_args($binary, "-y");
+      return $binary;
+    } );
 }
 
 =head2 check_prog_awk
@@ -241,8 +263,9 @@ From the autoconf documentation,
 
   Check for `gawk', `mawk', `nawk', and `awk', in that order, and
   set output [...] to the first one that is found.  It tries
-  `gawk' first because that is reported to be the best
-  implementation.
+  `gawk' first because that is reported to be the best implementation.
+  The result can be overridden by setting the variable AWK or the
+  cache variable ac_cv_prog_AWK.
 
 Note that it returns the full path, if found.
 
@@ -250,7 +273,9 @@ Note that it returns the full path, if found.
 
 sub check_prog_awk {
   my $self = shift;
-  return $self->check_progs(qw/gawk mawk nawk awk/);
+  my $cache_name = $self->_cache_name("prog", "AWK");
+  return $self->check_cached( $cache_name, "for awk",
+    sub {$ENV{AWK} || $self->check_progs(qw/gawk mawk nawk awk/)} );
 }
 
 
@@ -259,7 +284,9 @@ sub check_prog_awk {
 From the autoconf documentation,
 
   Check for `grep -E' and `egrep', in that order, and [...] output
-  [...] the first one that is found.
+  [...] the first one that is found.  The result can be overridden by
+  setting the EGREP variable and is cached in the ac_cv_path_EGREP
+  variable. 
 
 Note that it returns the full path, if found.
 
@@ -268,19 +295,20 @@ Note that it returns the full path, if found.
 sub check_prog_egrep {
   my $self = shift;
 
-  my $grep;
+  my $cache_name = $self->_cache_name("prog", "EGREP");
+  return $self->check_cached( $cache_name, "for egrep",
+    sub {
+      defined $ENV{EGREP} and return $ENV{EGREP};
+      my $grep;
+      $grep = $self->check_progs("egrep") and return $grep;
 
-  if ($grep = $self->check_prog("egrep")) {
-    return $grep;
-  }
-
-  if ($grep = $self->check_prog("grep")) {
-    my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
-    chomp $ans;
-    $ans eq "a" and return $self->_append_prog_args($grep,  "-E");
-  }
-
-  return undef;
+      if ($grep = $self->check_prog("grep")) {
+        # check_run - Capture::Tiny, Open3 ... ftw!
+        my $ans = `echo a | ($grep -E '(a|b)') 2>/dev/null`;
+        chomp $ans;
+        $ans eq "a" and return $self->_append_prog_args($grep,  "-E");
+      }
+    } );
 }
 
 =head2 check_prog_pkg_config
@@ -291,7 +319,7 @@ Checks for C<pkg-config> program. No additional tests are made for it ...
  
 sub check_prog_pkg_config {
   my $self = shift->_get_instance();
-  my $cache_name = $self->_cache_name("prog", "pkg-config");
+  my $cache_name = $self->_cache_name("prog", "PKG_CONFIG");
   return $self->check_cached( $cache_name, "for pkg-config",
     sub {$self->check_prog("pkg-config")} );
 }
@@ -837,6 +865,9 @@ sub check_cached {
   ref $self or $self = $self->_get_instance();
 
   $self->msg_checking( $message );
+
+  defined $ENV{$cache_name} and not defined $self->{cache}->{$cache_name}
+    and $self->{cache}->{$cache_name} = $ENV{$cache_name};
 
   if( defined($self->{cache}->{$cache_name}) ) {
     $self->msg_result( "(cached)", $self->{cache}->{$cache_name} );
@@ -1494,16 +1525,14 @@ sub check_header {
   my $self = shift;
   my $header = shift;
   my $pre_inc = shift;
-  
 
   return 0 unless $header;
-  my $prologue  = "";
-  defined $pre_inc
-    and $prologue .= "$pre_inc\n";
-
   my $cache_name = $self->_cache_name( $header );
   my $check_sub = sub {
-  
+    my $prologue  = "";
+    defined $pre_inc
+      and $prologue .= "$pre_inc\n";
+
     my $have_header = $self->_check_header( $header, $prologue, "" );
     $self->define_var( _have_header_define_name( $header ), $have_header ? $have_header : undef, "defined when $header is available" );
 

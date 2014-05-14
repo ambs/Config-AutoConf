@@ -1,13 +1,16 @@
 # -*- cperl -*-
 
-use Test::More tests => 24;
+use strict;
+use warnings;
+
+use Test::More tests => 25;
 
 use Config::AutoConf;
 
 END {
-  -e "config.log" and unlink "config.log";
-  -e "config2.log" and unlink "config2.log";
-  -e "config.h" and unlink "config.h";
+  foreach my $f (<config*.*>) {
+    -e $f and unlink $f;
+  }
 }
 
 diag("\n\nIgnore junk below.\n\n");
@@ -63,7 +66,7 @@ ok $ac->check_sizeof_types( ["I32", "SV *", "AV", "HV *", "SV.sv_refcnt" ], unde
   "Could determined sizes for I32, SV *, AV, HV *, SV.sv_refcnt" ;
 
 my $compute = $ac->compute_int( "-sizeof(I32)", undef, $include_perl );
-ok $typesize + $compute == 0, "Compute (-sizeof(I32)";
+cmp_ok( $compute, "==", 0-$typesize, "Compute (-sizeof(I32))" );
 
 # check perl data structure members
 ok $ac->check_member( "struct av.sv_any", undef, undef, $include_perl ),
@@ -105,3 +108,9 @@ $ac->write_config_h( $fh );
 close( $fh );
 
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
+
+SCOPE: {
+  local $ENV{ac_cv_insane_h} = "/usr/include/insane.h";
+  my $insane_h = $ac->check_header("insane.h");
+  is($insane_h, $ENV{ac_cv_insane_h}, "Cache override for header files work");
+}

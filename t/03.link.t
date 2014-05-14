@@ -1,5 +1,8 @@
 # -*- cperl -*-
 
+use strict;
+use warnings;
+
 use Test::More tests => 6;
 
 use Config::AutoConf;
@@ -25,4 +28,3 @@ TODO: {
     isnt( $where_atan, 0, "library for atan() found (or none required)" );
 
 };
-

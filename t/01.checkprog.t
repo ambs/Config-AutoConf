@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More tests => 14;
 use Config;
 use Config::AutoConf;
 
@@ -15,6 +15,38 @@ ok( !Config::AutoConf->check_prog("hopingnobodyhasthiscommand"), "Don't find ''h
 
 like( Config::AutoConf->check_progs( "___perl___", "__perl__", "_perl_", "perl" ), qr/perl(?:\.exe)?$/i, "Find perl only" );
 is( Config::AutoConf->check_progs( "___perl___", "__perl__", "_perl_" ), undef, "Find no _xn surrounded perl" );
+
+SCOPE: {
+  my $ac = Config::AutoConf->new(); # avoid cache influences tests below
+  local $ENV{AWK} = "/somewhere/over/the/rainbow";
+  my $awk = $ac->check_prog_awk;
+  is($awk, $ENV{AWK}, "\$ENV{AWK} honored");
+
+  local $ENV{EGREP} = "/somewhere/over/the/rainbow";
+  my $egrep = $ac->check_prog_egrep;
+  is($egrep, $ENV{EGREP}, "\$ENV{EGREP} honored");
+
+  local $ENV{YACC} = "/somewhere/over/the/rainbow";
+  my $yacc = $ac->check_prog_yacc;
+  is($yacc, $ENV{YACC}, "\$ENV{YACC} honored");
+}
+
+SCOPE: {
+  my $ac = Config::AutoConf->new(); # avoid cache influences tests below
+  local $ENV{ac_cv_prog_AWK} = "/somewhere/over/the/rainbow";
+  my $awk = $ac->check_prog_awk;
+  is($awk, $ENV{ac_cv_prog_AWK}, "\$ENV{ac_cv_prog_AWK} honored");
+
+  local $ENV{ac_cv_prog_EGREP} = "/somewhere/over/the/rainbow";
+  my $egrep = $ac->check_prog_egrep;
+  is($egrep, $ENV{ac_cv_prog_EGREP}, "\$ENV{ac_cv_prog_EGREP} honored");
+
+  local $ENV{ac_cv_prog_YACC} = "/somewhere/over/the/rainbow";
+  my $yacc = $ac->check_prog_yacc;
+  is($yacc, $ENV{ac_cv_prog_YACC}, "\$ENV{ac_cv_prog_YACC} honored");
+}
+
+diag("Check for some progs to get an overview about world outside");
 
 sub _is_x {
   $^O =~ m/MSWin32/i and return $_[0] =~ m/\.(?:exe|com|bat|cmd)$/;
