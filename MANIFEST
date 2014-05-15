@@ -3,8 +3,6 @@ lib/Config/AutoConf.pm
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
-META.json
-META.yml
 README
 t/00.load.t
 t/01.checkprog.t
