@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 18;
 use Config;
 use Config::AutoConf;
 
@@ -22,6 +22,10 @@ SCOPE: {
   my $awk = $ac->check_prog_awk;
   is($awk, $ENV{AWK}, "\$ENV{AWK} honored");
 
+  local $ENV{SED} = "/somewhere/over/the/rainbow";
+  my $sed = $ac->check_prog_sed;
+  is($sed, $ENV{SED}, "\$ENV{SED} honored");
+
   local $ENV{EGREP} = "/somewhere/over/the/rainbow";
   my $egrep = $ac->check_prog_egrep;
   is($egrep, $ENV{EGREP}, "\$ENV{EGREP} honored");
@@ -36,6 +40,10 @@ SCOPE: {
   local $ENV{ac_cv_prog_AWK} = "/somewhere/over/the/rainbow";
   my $awk = $ac->check_prog_awk;
   is($awk, $ENV{ac_cv_prog_AWK}, "\$ENV{ac_cv_prog_AWK} honored");
+
+  local $ENV{ac_cv_prog_SED} = "/somewhere/over/the/rainbow";
+  my $sed = $ac->check_prog_sed;
+  is($sed, $ENV{ac_cv_prog_SED}, "\$ENV{ac_cv_prog_SED} honored");
 
   local $ENV{ac_cv_prog_EGREP} = "/somewhere/over/the/rainbow";
   my $egrep = $ac->check_prog_egrep;
@@ -62,6 +70,14 @@ SKIP: {
 }
 
 SKIP: {
+  my $sed = Config::AutoConf->check_prog_sed;
+  $sed or skip "No sed", 1;
+  my $sed_bin = ( map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ } Text::ParseWords::shellwords $sed )[0];
+  ok( _is_x($sed_bin), "$sed_bin is executable" );
+  diag("Found SED as $sed");
+}
+
+SKIP: {
   my $grep = Config::AutoConf->check_prog_egrep;
   $grep or skip "No egrep", 1;
   my $grep_bin = ( map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ } Text::ParseWords::shellwords $grep )[0];
@@ -75,6 +91,14 @@ SKIP: {
   my $yacc_bin = ( map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ } Text::ParseWords::shellwords $yacc )[0];
   ok( _is_x($yacc_bin), "$yacc is executable" );
   diag("Found YACC as $yacc");
+}
+
+SKIP: {
+  my $lex = Config::AutoConf->check_prog_lex;
+  $lex or skip "No lex", 1;
+  my $lex_bin = ( map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ } Text::ParseWords::shellwords $lex )[0];
+  ok( _is_x($lex_bin), "$lex is executable" );
+  diag("Found LEX as $lex");
 }
 
 SKIP: {

@@ -17,24 +17,24 @@ my %RUN_DEPS = (
     'File::Temp'         => 0,
     'Text::ParseWords'   => 0,
 );
-my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
+my %CONFIGURE_DEPS = ( 'ExtUtils::MakeMaker' => 0 );
 my %BUILD_DEPS = ();
 
-my %TEST_DEPS = ('Test::More' => 0.90);
+my %TEST_DEPS = ( 'Test::More' => 0.90 );
 $] < 5.008 and $TEST_DEPS{'IO::String'} = 0;
 
 WriteMakefile1(
-    META_ADD         => {
+    META_ADD => {
         'meta-spec' => { version => 2 },
         resources   => {
-            homepage => 'https://metacpan.org/release/Config-AutoConf',
+            homepage   => 'https://metacpan.org/release/Config-AutoConf',
             repository => {
                 url  => 'git@github.com:ambs/Config-AutoConf.git',
                 web  => 'https://github.com/ambs/Config-AutoConf',
                 type => 'git',
             },
             license    => 'http://dev.perl.org/licenses/',
-            bugtracker  => {
+            bugtracker => {
                 web    => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Config-AutoConf',
                 mailto => 'bug-config-autoconf@rt.cpan.org',
             },
@@ -52,20 +52,21 @@ WriteMakefile1(
             configure => {
                 requires => {%CONFIGURE_DEPS},
             },
-            build   => { requires => {%BUILD_DEPS} },
+            build => {
+                requires   => {%BUILD_DEPS},
+                recommends => { 'File::Slurp::Tiny' => 0 }
+            },
             test    => { requires => {%TEST_DEPS} },
             runtime => {
-                requires => {
-                    %RUN_DEPS,
+                requires   => { %RUN_DEPS, },
+                recommends => {
+                    'Scalar::Util' => '1.18',
                 },
-		recommends => {
-		    'Scalar::Util' => '1.18',
-		},
             },
         },
     },
     NAME           => 'Config::AutoConf',
-    AUTHOR         => 'Alberto Simoes <ambs@cpan.org>',
+    AUTHOR         => [ 'Alberto Simoes <ambs@cpan.org>', 'Jens Rehsack <rehsack@cpan.org' ],
     VERSION_FROM   => 'lib/Config/AutoConf.pm',
     ABSTRACT_FROM  => 'lib/Config/AutoConf.pm',
     LICENSE        => 'perl',

@@ -41,6 +41,18 @@ sub looks_like_number {
 }
 EOP
 
+eval "use File::Slurp::Tiny qw/read_file/;";
+__PACKAGE__->can("read_file") or eval <<'EOP';
+sub read_file {
+  my $fn = shift;
+  local $@ = "";
+  open( my $fh, "<", $fn ) or croak "Error opening $fn: $!";
+  my $fc = <$fh>;
+  close($fh) or croak "I/O error closing $fn: $!";
+  return $fc;
+}
+EOP
+
 # PA-RISC1.1-thread-multi
 my %special_dlext = (
   darwin => ".dylib",
@@ -310,6 +322,131 @@ sub check_prog_egrep {
       }
     } );
 }
+
+=head2 check_prog_lex
+
+From the autoconf documentation,
+
+  If flex is found, set output [...] to ‘flex’ and [...] to -lfl, if that
+  library is in a standard place. Otherwise set output [...] to ‘lex’ and
+  [...] to -ll, if found. If [...] packages [...] ship the generated
+  file.yy.c alongside the source file.l, this [...] allows users without a
+  lexer generator to still build the package even if the timestamp for
+  file.l is inadvertently changed.
+
+Note that it returns the full path, if found.
+
+The structure $self->{lex} is set with attributes
+
+  prog => $LEX
+  lib => $LEXLIB
+  root => $lex_root
+
+=cut
+
+sub check_prog_lex {
+  my $self = shift->_get_instance;
+  my $cache_name = $self->_cache_name("prog", "LEX");
+  my $lex = $self->check_cached( $cache_name, "for lex",
+    sub {$ENV{LEX} || $self->check_progs(qw/flex lex/)} );
+  if($lex) {
+    defined $self->{lex}->{prog} or $self->{lex}->{prog} = $lex;
+    my $lex_root_var = $self->check_cached( "ac_cv_prog_lex_root", "for lex output file root",
+      sub {
+        my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.l');
+        my $src = <<'EOLEX';
+%%
+a { ECHO; }
+b { REJECT; }
+c { yymore (); }
+d { yyless (1); }
+e { /* IRIX 6.5 flex 2.5.4 underquotes its yyless argument.  */
+    yyless ((input () != 0)); }
+f { unput (yytext[0]); }
+. { BEGIN INITIAL; }
+%%
+#ifdef YYTEXT_POINTER
+extern char *yytext;
+#endif
+int
+main (void)
+{
+  return ! yylex () + ! yywrap ();
+}
+EOLEX
+
+        print {$fh} $src;
+        close $fh;
+
+        my ( $stdout, $stderr, $exit ) =
+          capture { system( $lex, $filename ); };
+        chomp $stdout;
+        unlink $filename;
+        -f "lex.yy.c" and return "lex.yy";
+        -f "lexyy.c" and return "lexyy";
+        $self->msg_error("cannot find output from $lex; giving up");
+      });
+    defined $self->{lex}->{root} or $self->{lex}->{root} = $lex_root_var;
+
+    my $conftest = read_file($lex_root_var.".c");
+    unlink $lex_root_var.".c";
+
+    $cache_name = $self->_cache_name( "lib", "lex" );
+    my $check_sub = sub {
+      my @save_libs = @{$self->{extra_libs}};
+      my $have_lib = 0;
+      foreach my $libstest ( undef, qw(-lfl -ll) ) {
+        # XXX would local work on array refs? can we omit @save_libs?
+        $self->{extra_libs} = [ @save_libs ];
+        defined( $libstest ) and unshift( @{$self->{extra_libs}}, $libstest );
+        $self->link_if_else( $conftest )
+          and ( $have_lib = defined( $libstest ) ? $libstest : "none required" )
+          and last;
+      }
+      $self->{extra_libs} = [ @save_libs ];
+
+      if( $have_lib ) {
+        $self->define_var( _have_lib_define_name( "lex" ), $have_lib,
+                           "defined when lex library is available" );
+      }
+      else {
+        $self->define_var( _have_lib_define_name( "lex" ), undef,
+                           "defined when lex library is available" );
+      }
+      return $have_lib;
+    };
+
+    my $lex_lib = $self->check_cached( $cache_name, "lex library", $check_sub );
+    defined $self->{lex}->{lib} or $self->{lex}->{lib} = $lex_lib;
+  }
+
+  return $lex;
+}
+
+
+=head2 check_prog_sed
+
+From the autoconf documentation,
+
+  Set output variable [...] to a Sed implementation that conforms to Posix
+  and does not have arbitrary length limits. Report an error if no
+  acceptable Sed is found. See Limitations of Usual Tools, for more
+  information about portability problems with Sed.
+
+  The result of this test can be overridden by setting the SED variable and
+  is cached in the ac_cv_path_SED variable. 
+
+Note that it returns the full path, if found.
+
+=cut
+
+sub check_prog_sed {
+  my $self = shift;
+  my $cache_name = $self->_cache_name("prog", "SED");
+  return $self->check_cached( $cache_name, "for sed",
+    sub {$ENV{SED} || $self->check_progs(qw/gsed sed/)} );
+}
+
 
 =head2 check_prog_pkg_config
 
