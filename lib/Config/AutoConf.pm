@@ -1619,7 +1619,7 @@ sub check_headers {
     return $_ if $self->check_header($_)
   }
 
-  return undef;
+  return;
 }
 
 sub _have_header_define_name {
@@ -1800,6 +1800,70 @@ sub _have_lib_define_name {
   my $have_name = "HAVE_LIB" . uc($lib);
   $have_name =~ tr/_A-Za-z0-9/_/c;
   return $have_name;
+}
+
+=head2 _check_perl_api_program
+
+This method provides the program source which is suitable to do basic
+compile/link tests to prove perl development environment.
+
+=cut
+
+sub _check_perl_api_program {
+  my $self = shift;
+
+  my $includes = $self->_default_includes_with_perl();
+  my $perl_check_body = <<'EOB';
+  I32 rc;
+  SV *foo = newSVpv("Perl rocks", 11);
+  rc = SvCUR(foo);
+EOB
+  my $conftest = $self->lang_build_program( $includes, $perl_check_body );
+
+  return $conftest;
+}
+
+=head2 _check_compile_perl_api
+
+This method can be used from other checks to prove whether we have a perl
+development environment or not (perl.h, reasonable basic checks - types, etc.)
+
+=cut
+
+sub _check_compile_perl_api {
+  my $self = shift;
+
+  my $conftest = $self->_check_perl_api_program();
+  return $self->compile_if_else($conftest);
+}
+
+=head2 _check_link_perl_api
+
+This method can be used from other checks to prove whether we have a perl
+development environment including a suitable libperl or not (perl.h,
+reasonable basic checks - types, etc.)
+
+Caller must ensure that the linker flags are set appropriate (C<-lperl>
+or similar).
+
+=cut
+
+sub _check_link_perl_api {
+  my $self = shift;
+
+  my $conftest = $self->_check_perl_api_program();
+  my @save_libs = @{$self->{extra_libs}};
+  my @save_extra_link_flags = @{$self->{extra_link_flags}};
+
+  push @{$self->{extra_libs}}, "perl";
+  push @{$self->{extra_link_flags}}, "-L" . File::Spec->catdir($Config{installarchlib}, "CORE");
+
+  my $have_libperl = $self->link_if_else( $conftest );
+
+  $self->{extra_libs} = [ @save_libs ];
+  $self->{extra_link_flags} = [ @save_extra_link_flags ];
+
+  return $have_libperl;
 }
 
 =head2 check_lm( [ action-if-found ], [ action-if-not-found ] )
@@ -2224,6 +2288,26 @@ _ACEOF
 
   return $conftest;
 }
+
+=head2 _default_includes_with_perl
+
+returns a string containing default includes for program prologue containing
+I<_default_includes> plus
+
+  #include <EXTERN.h>
+  #include <perl.h>
+
+=cut
+
+sub _default_includes_with_perl {
+  my ($self) = @_;
+
+  my $include_perl = "#include <EXTERN.h>\n#include <perl.h>";
+  my $includes = join( "\n", $self->_default_includes, $include_perl );
+
+  return $includes;
+}
+
 
 sub _cache_prefix {
   return "ac";

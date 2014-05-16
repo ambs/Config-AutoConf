@@ -3,11 +3,11 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 use Config::AutoConf;
 
-END { -e "config.log" and unlink "config.log"; }
+#END { -e "config.log" and unlink "config.log"; }
 
 diag("\n\nIgnore junk below.\n\n");
 
@@ -26,5 +26,7 @@ TODO: {
     my $where_atan;
     ok( $where_atan = $ac_2->search_libs( "atan", [qw(m)] ), "searching lib for atan()" );
     isnt( $where_atan, 0, "library for atan() found (or none required)" );
-
 };
+
+ok( $ac_1->_check_link_perl_api(), "Could link perl extensions" );
+

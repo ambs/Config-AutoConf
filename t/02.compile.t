@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 25;
+use Test::More tests => 26;
 
 use Config::AutoConf;
 
@@ -108,6 +108,8 @@ $ac->write_config_h( $fh );
 close( $fh );
 
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
+
+ok( $ac->_check_compile_perl_api(), "Could compile perl extensions" );
 
 SCOPE: {
   local $ENV{ac_cv_insane_h} = "/usr/include/insane.h";

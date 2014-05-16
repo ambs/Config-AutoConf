@@ -8,6 +8,8 @@ Revision history for Config-AutoConf
 	- add additional check_prog_... support fox lex and sed - most
 	  other checks aren't suitable until a reasonable "postamble"
 	  support is provided
+	- add support to prove whether perl development environment is
+	  "sane" (as far that can be told)
 
 0.27    2014-04-25
         - fix broken Changes
