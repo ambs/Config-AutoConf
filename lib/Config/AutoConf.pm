@@ -2109,10 +2109,102 @@ sub pkg_config_package_flags
     return $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
 }
 
+=head2 _check_pureperl_build_wanted
+
+This method proves the C<_argv> attribute and (when set) the C<PERL_MM_OPT>
+whether they contain I<PUREPERL_ONLY=(0|1)> or not. The attribute C<_force_xs>
+is set appropriate, which allows a compile test to bail out when C<Makefile.PL>
+is called with I<PUREPERL_ONLY=0>.
+
+=cut
+
+sub _check_mm_pureperl_build_wanted {
+  my $self = shift->_get_instance;
+
+  defined $ENV{PERL_MM_OPT} and my @env_args = split " ", $ENV{PERL_MM_OPT};
+
+  foreach my $arg ( @{$self->{_argv}}, @env_args ) {
+    $arg =~ m/^PUREPERL_ONLY=(.*)$/ and return $self->{_force_xs} = 0 + !! $1;
+  }
+
+  return 0;
+}
+
+=head2 _check_pureperl_build_wanted
+
+This method proves the C<_argv> attribute and (when set) the C<PERL_MB_OPT>
+whether they contain I<--pureperl-only> or not.
+
+=cut
+
+sub _check_mb_pureperl_build_wanted {
+  my $self = shift->_get_instance;
+
+  defined $ENV{PERL_MB_OPT} and my @env_args = split " ", $ENV{PERL_MB_OPT};
+
+  foreach my $arg ( @{$self->{_argv}}, @env_args ) {
+    $arg eq "--pureperl-only" and return 1;
+  }
+
+  return 0;
+}
+
+=head2 _check_pureperl_build_wanted
+
+This method calls C<_check_mm_pureperl_build_wanted> when running under
+L<ExtUtils::MakeMaker> (C<Makefile.PL>) or C<_check_mb_pureperl_build_wanted>
+when running under a C<Build.PL> (L<Module::Build> compatible) environment.
+
+When neither is found (C<$0> contains neither C<Makefile.PL> nor C<Build.PL>),
+simply 0 is returned.
+
+=cut
+
+sub _check_pureperl_build_wanted {
+  $0 =~ m/Makefile\.PL$/i and goto \&_check_mm_pureperl_build_wanted;
+  $0 =~ m/Build\.PL$/i and goto \&_check_mb_pureperl_build_wanted;
+
+  return 0;
+}
+
+=head2 check_pureperl_build_wanted
+
+This check method proves whether a pureperl build is wanted or not by
+cached-checking C<< $self->_check_pureperl_build_wanted >>. The result
+might lead to further checks, eg. L</_check_compile_perl_api>.
+
+=cut
+
+sub check_pureperl_build_wanted {
+  my $self = shift->_get_instance;
+  my $cache_name = $self->_cache_name(qw(pureperl only wanted));
+  return $self->check_cached( $cache_name,
+    "whether pureperl shall be forced",
+    sub { $self->_check_pureperl_build_wanted } );
+}
+
 #
 #
 # Auxiliary funcs
 #
+
+=head2 _set_argv
+
+Intended to act as a helper for evaluating given command line arguments.
+Stores given arguments in instances C<_argv> attribute.
+
+Call once at very begin of C<Makefile.PL> or C<Build.PL>:
+
+  Your::Pkg::Config::AutoConf->_set_args(@ARGV);
+
+=cut
+
+sub _set_argv {
+  my ( $self, @argv ) = @_;
+  $self = $self->_get_instance;
+  $self->{_argv} = \@argv;
+  return;
+}
 
 sub _sanitize {
   # This is hard coded, and maybe a little stupid...
