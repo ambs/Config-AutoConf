@@ -1837,6 +1837,21 @@ sub _check_compile_perl_api {
   return $self->compile_if_else($conftest);
 }
 
+=head2 check_compile_perl_api
+
+This method can be used from other checks to prove whether we have a perl
+development environment or not (perl.h, reasonable basic checks - types, etc.)
+
+=cut
+
+sub check_compile_perl_api {
+  my $self = shift->_get_instance;
+  my $cache_name = $self->_cache_name(qw(compile perl api));
+  return $self->check_cached( $cache_name,
+    "whether perl api is accessible",
+    sub { $self->_check_compile_perl_api } );
+}
+
 =head2 _check_link_perl_api
 
 This method can be used from other checks to prove whether we have a perl
