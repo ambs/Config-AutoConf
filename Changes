@@ -1,6 +1,6 @@
 Revision history for Config-AutoConf
 
-0.28	2014-05-17
+0.28	2014-05-18
 	- fix perl 5.6 support
 	- improve existing prog checks when binaries with default ars are
 	  returned
