@@ -24,6 +24,14 @@ use Capture::Tiny qw/capture/;
 # in core since 5.7.3
 eval "use Scalar::Util qw/looks_like_number/;";
 __PACKAGE__->can("looks_like_number") or eval <<'EOP';
+=begin private
+
+=head2 looks_like_number
+
+=end private
+
+=cut
+
 # from PP part of Params::Util
 sub looks_like_number {
     local $_ = shift;
@@ -43,6 +51,14 @@ EOP
 
 eval "use File::Slurp::Tiny qw/read_file/;";
 __PACKAGE__->can("read_file") or eval <<'EOP';
+=begin private
+
+=head2 read_file
+
+=end private
+
+=cut
+
 sub read_file {
   my $fn = shift;
   local $@ = "";
