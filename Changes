@@ -1,5 +1,11 @@
 Revision history for Config-AutoConf
 
+0.300	2014-05-20
+	- add some code to tests to inspect the massive fail of 0.28
+	- include compiler invocation in log on failure
+	- add support for appending to logfiles (see t/ for examples)
+	- tidy Makefile.PL a bit and try to improve smoke results
+
 0.29	2014-05-19
 	- make perl extension tests optional - add support to analyse
 	  is scheduled for 0.300
