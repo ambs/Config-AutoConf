@@ -2452,7 +2452,8 @@ sub _cache_name {
 sub _get_log_fh {
   my $self = $_[0]->_get_instance();
   unless( defined( $self->{logfh} ) ) {
-    open( $self->{logfh}, ">", $self->{logfile} ) or croak "Could not open file $self->{logfile}: $!";
+    my $open_mode = defined $self->{logfile_mode} ? $self->{logfile_mode} : ">";
+    open( $self->{logfh}, $open_mode, $self->{logfile} ) or croak "Could not open file $self->{logfile}: $!";
   }
 
   return $self->{logfh};
