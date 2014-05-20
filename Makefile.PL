@@ -23,6 +23,8 @@ my %BUILD_DEPS = ();
 my %TEST_DEPS = ( 'Test::More' => 0.90 );
 $] < 5.008 and $TEST_DEPS{'IO::String'} = 0;
 
+$ENV{AUTOMATED_TESTING} and %TEST_DEPS = ( %TEST_DEPS, 'IO::Tee' => 0 );    ## XXX rewrite WriteMakefile1
+
 WriteMakefile1(
     META_ADD => {
         'meta-spec' => { version => 2 },
@@ -53,14 +55,17 @@ WriteMakefile1(
                 requires => {%CONFIGURE_DEPS},
             },
             build => {
-                requires   => {%BUILD_DEPS},
-                recommends => { 'File::Slurp::Tiny' => 0 }
+                requires => {%BUILD_DEPS},
             },
-            test    => { requires => {%TEST_DEPS} },
+            test => {
+                requires   => {%TEST_DEPS},
+                recommends => { 'IO::Tee' => 0 }
+            },
             runtime => {
                 requires   => { %RUN_DEPS, },
                 recommends => {
-                    'Scalar::Util' => '1.18',
+                    'Scalar::Util'      => '1.18',
+                    'File::Slurp::Tiny' => 0,
                 },
             },
         },
@@ -117,7 +122,7 @@ sub WriteMakefile1
         my $ok = CheckConflicts(%params);
         exit(0) if ( $params{PREREQ_FATAL} and not $ok );
         my $cpan_smoker = grep { $_ =~ m/(?:CR_SMOKER|CPAN_REPORTER|AUTOMATED_TESTING)/ } keys %ENV;
-        unless ( $cpan_smoker || $ENV{PERL_MM_USE_DEFAULT} || $ENV{SQL_STATEMENT_WARN_UPDATE} )
+        unless ( $cpan_smoker || $ENV{PERL_MM_USE_DEFAULT} )
         {
             sleep 4 unless ($ok);
         }
