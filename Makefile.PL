@@ -44,8 +44,10 @@ WriteMakefile1(
         prereqs => {
             develop => {
                 requires => {
+                    'File::Copy'                          => 0,
                     'Test::CPAN::Changes'                 => 0,
                     'Test::CheckManifest'                 => 0,
+                    'Test::Kwalitee'                      => 0,
                     'Test::Pod'                           => 0,
                     'Test::Pod::Coverage'                 => 0,
                     'Test::Pod::Spelling::CommonMistakes' => 0,
