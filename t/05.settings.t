@@ -11,16 +11,19 @@ use Cwd qw(abs_path);
 use File::Basename qw(dirname);
 use File::Spec;
 
-END { -e "config.log" and unlink "config.log"; }
-
-diag("\n\nIgnore junk below.\n\n");
+END {
+  foreach my $f (<config*.*>) {
+    -e $f and unlink $f;
+  }
+}
 
 my $pkg_config = Config::AutoConf->check_prog_pkg_config;
 
 SKIP: {
   $pkg_config or skip "No pkg-config", 1;
   local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir( dirname(abs_path($0)), "testdata" );
-  my $foo_flags = Config::AutoConf->pkg_config_package_flags("foo");
+  my $ac = Config::AutoConf->new(logfile => "config5.log");
+  my $foo_flags = $ac->pkg_config_package_flags("foo");
   is($foo_flags, "-I/base/path/include/foo-0 -L/base/path/lib/foo -lfoo", "pkg-config flags for 'foo'");
 }
 
@@ -28,43 +31,44 @@ SCOPE: {
   # this section intensionally works without pkg-config binary
   local $ENV{bar_CFLAGS} = "-Ibar";
   local $ENV{bar_LIBS} = "-lbar";
-  my $bar_flags = Config::AutoConf->pkg_config_package_flags("bar>2");
+  my $ac = Config::AutoConf->new(logfile => "config5.log", logfile_mode => ">>");
+  my $bar_flags = $ac->pkg_config_package_flags("bar>2");
   is($bar_flags, "-Ibar -lbar", "pkg-config flags for 'bar>2'");
-  my $cache_name = Config::AutoConf->_get_instance()->_cache_name(qw/pkg bar/);
-  ok(Config::AutoConf->_get_instance()->{cache}->{$cache_name}, "cache entry for 'bar>2' computed correctly");
+  my $cache_name = $ac->_cache_name(qw/pkg bar/);
+  ok($ac->{cache}->{$cache_name}, "cache entry for 'bar>2' computed correctly");
 }
 
 SCOPE: {
   local $ENV{PERL_MM_OPT} = "PUREPERL_ONLY=0";
   local $0 = "Makefile.PL";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   ok(!$ac->check_pureperl_build_wanted(), "PERL_MM_OPT=\"PUREPERL_ONLY=0\" Makefile.PL");
 }
 
 SCOPE: {
   local $ENV{PERL_MM_OPT} = "PUREPERL_ONLY=1";
   local $0 = "Makefile.PL";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   ok($ac->check_pureperl_build_wanted(), "PERL_MM_OPT=\"PUREPERL_ONLY=1\" Makefile.PL");
 }
 
 SCOPE: {
   local $0 = "Makefile.PL";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("PUREPERL_ONLY=0");
   ok(!$ac->check_pureperl_build_wanted(), "Makefile.PL PUREPERL_ONLY=0");
 }
 
 SCOPE: {
   local $0 = "Makefile.PL";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("PUREPERL_ONLY=1");
   ok($ac->check_pureperl_build_wanted(), "Makefile.PL PUREPERL_ONLY=1");
 }
 
 SCOPE: {
   local $0 = "Build.PL";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("--pureperl-only");
   ok($ac->check_pureperl_build_wanted(), "Build.PL --pureperl-only");
 }
@@ -72,6 +76,6 @@ SCOPE: {
 SCOPE: {
   local $0 = "Build.PL";
   local $ENV{PERL_MB_OPT} = "--pureperl-only";
-  my $ac = Config::AutoConf->new();
+  my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   ok($ac->check_pureperl_build_wanted(), "PERL_MB_OPT=\"--pureperl-only\" ");
 }

@@ -13,8 +13,6 @@ END {
   }
 }
 
-diag("\n\nIgnore junk below.\n\n");
-
 ## OK, we really hope people have sdtio.h around
 ok(Config::AutoConf->check_header("stdio.h"));
 ok(!Config::AutoConf->check_header("astupidheaderfile.h"));
@@ -106,12 +104,32 @@ else {
 }
 $ac->write_config_h( $fh );
 close( $fh );
+$fh = undef;
 
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
 
 TODO: {
   local $TODO = "Quick fix: TODO - analyse diag later";
-  ok( $ac->check_compile_perl_api(), "Could compile perl extensions" );
+  my $old_logfh;
+  $dbuf = "";
+
+  eval "use IO::Tee;";
+  unless($@) {
+    if ($] < 5.008) {
+      $fh = IO::String->new($dbuf);
+    }
+    else {
+      open( $fh, "+>", \$dbuf );
+    }
+    $old_logfh = $ac->{logfh};
+    my $tee = IO::Tee->new($ac->{logfh}, $fh);
+    $ac->{logfh} = $tee;
+  }
+
+  ok( $ac->check_compile_perl_api(), "Could compile perl extensions" ) or diag($dbuf);
+  defined $old_logfh and $ac->{logfh} = $old_logfh;
+  defined $fh and close($fh);
+  $fh = undef;
 }
 
 SCOPE: {
