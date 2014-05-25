@@ -31,11 +31,10 @@ TODO: {
 };
 
 TODO: {
-  local $TODO = "Quick fix: TODO - analyse diag later";
-  my ($fh, $fbuf, $dbuf, $old_logfh);
+  local $TODO = "Quick fix: TODO - analyse diag later" unless $ENV{AUTOMATED_TESTING};
+  my ($fh, $fbuf, $dbuf, @old_logfh);
   $dbuf = "";
 
-  eval "use IO::Tee;";
   unless($@) {
     if ($] < 5.008) {
       require IO::String;
@@ -44,12 +43,12 @@ TODO: {
     else {
       open( $fh, "+>", \$dbuf );
     }
-    $old_logfh = $ac_1->{logfh};
-    my $tee = IO::Tee->new($ac_1->{logfh}, $fh);
-    $ac_1->{logfh} = $tee;
+    @old_logfh = @{$ac_1->{logfh}};
+    $ac_1->add_log_fh($fh);
   }
   ok( $ac_1->_check_link_perl_api(), "Could link perl extensions" );
-  defined $old_logfh and $ac_1->{logfh} = $old_logfh;
+  scalar @old_logfh and $ac_1->delete_log_fh( $fh );
+  scalar @old_logfh and is_deeply(\@old_logfh, $ac_1->{logfh}, "add_log_fh/delete_log_fh");
   defined $fh and close($fh);
   $fh = undef;
 }

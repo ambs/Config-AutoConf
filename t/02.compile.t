@@ -3,15 +3,15 @@
 use strict;
 use warnings;
 
-use Test::More tests => 26;
+use Test::More tests => 27;
 
 use Config::AutoConf;
 
-END {
-  foreach my $f (<config*.*>) {
-    -e $f and unlink $f;
-  }
-}
+#END {
+#  foreach my $f (<config*.*>) {
+#    -e $f and unlink $f;
+#  }
+#}
 
 ## OK, we really hope people have sdtio.h around
 ok(Config::AutoConf->check_header("stdio.h"));
@@ -109,11 +109,10 @@ $fh = undef;
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
 
 TODO: {
-  local $TODO = "Quick fix: TODO - analyse diag later";
-  my $old_logfh;
+  local $TODO = "Quick fix: TODO - analyse diag later" unless $ENV{AUTOMATED_TESTING};
+  my @old_logfh;
   $dbuf = "";
 
-  eval "use IO::Tee;";
   unless($@) {
     if ($] < 5.008) {
       $fh = IO::String->new($dbuf);
@@ -121,13 +120,13 @@ TODO: {
     else {
       open( $fh, "+>", \$dbuf );
     }
-    $old_logfh = $ac->{logfh};
-    my $tee = IO::Tee->new($ac->{logfh}, $fh);
-    $ac->{logfh} = $tee;
+    @old_logfh = @{$ac->{logfh}};
+    $ac->add_log_fh($fh);
   }
 
   ok( $ac->check_compile_perl_api(), "Could compile perl extensions" ) or diag($dbuf);
-  defined $old_logfh and $ac->{logfh} = $old_logfh;
+  scalar @old_logfh and $ac->delete_log_fh( $fh );
+  scalar @old_logfh and is_deeply(\@old_logfh, $ac->{logfh}, "add_log_fh/delete_log_fh");
   defined $fh and close($fh);
   $fh = undef;
 }

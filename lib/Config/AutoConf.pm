@@ -497,7 +497,7 @@ sub msg_checking {
   my $self = shift->_get_instance();
   $self->{quiet} or
     print "Checking " . join(" ", @_) . "... ";
-  $self->_add2log( "Checking " . join( " ", @_, "..." ) );
+  $self->_add_log_entry( "Checking " . join( " ", @_, "..." ) );
   return;
 }
 
@@ -520,6 +520,7 @@ sub msg_result {
   my $self = shift->_get_instance();
   $self->{quiet} or
     print join( " ", map { _neat $_ } @_ ), "\n";
+  $self->_add_log_entry( join( " ", map { _neat $_ } @_ ), "\n" );
   return;
 }
 
@@ -533,6 +534,7 @@ sub msg_notice {
   my $self = shift->_get_instance();
   $self->{quiet} or
     print $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  $self->_add_log_entry( $self->{msg_prefix} . join( " ", @_ ) . "\n" );
   return;
 }
 
@@ -544,8 +546,8 @@ Prints "configure: " @_ to stderr
 
 sub msg_warn {
   my $self = shift->_get_instance();
-  $self->{quiet} or
-    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  $self->_add_log_entry( "WARNING: " . $self->{msg_prefix} . join( " ", @_ ) . "\n" );
   return;
 }
 
@@ -558,8 +560,8 @@ toolchain to stop here and report unsupported environment)
 
 sub msg_error {
   my $self = shift->_get_instance();
-  $self->{quiet} or
-    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  $self->_add_log_entry( "ERROR: " . $self->{msg_prefix} . join( " ", @_ ) . "\n" );
   exit(0); # #toolchain agreement: prevents configure stage to finish
 }
 
@@ -574,8 +576,8 @@ later stage).
 
 sub msg_failure {
   my $self = shift->_get_instance();
-  $self->{quiet} or
-    print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  print STDERR $self->{msg_prefix} . join( " ", @_ ) . "\n";
+  $self->_add_log_entry( "FAILURE: " . $self->{msg_prefix} . join( " ", @_ ) . "\n" );
   exit(0); # #toolchain agreement: prevents configure stage to finish
 }
 
@@ -922,12 +924,12 @@ sub compile_if_else {
   unlink $obj_file if $obj_file;
 
   if ($exception || !$obj_file) {
-    $self->_add2log( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $self->_add_log_lines( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
     $errbuf and
-      $self->_add2log( $errbuf );
-    $self->_add2log( "failing program is:\n" . $src );
+      $self->_add_log_lines( $errbuf );
+    $self->_add_log_lines( "failing program is:\n" . $src );
     $outbuf and
-      $self->_add2log( "stdout was :\n" . $outbuf );
+      $self->_add_log_lines( "stdout was :\n" . $outbuf );
 
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
@@ -969,12 +971,12 @@ sub link_if_else {
   };
 
   if ($exception || !$obj_file) {
-    $self->_add2log( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $self->_add_log_lines( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
     $errbuf and
-      $self->_add2log( $errbuf );
-    $self->_add2log( "failing program is:\n" . $src );
+      $self->_add_log_lines( $errbuf );
+    $self->_add_log_lines( "failing program is:\n" . $src );
     $outbuf and
-      $self->_add2log( "stdout was :\n" . $outbuf );
+      $self->_add_log_lines( "stdout was :\n" . $outbuf );
 
     unlink $filename;
     unlink $obj_file if $obj_file;
@@ -997,12 +999,12 @@ sub link_if_else {
   unlink $exe_file if $exe_file;
 
   if ($exception || !$exe_file) {
-    $self->_add2log( "link stage failed" . ( $exception ? " - " . $exception : "" ) );
+    $self->_add_log_lines( "link stage failed" . ( $exception ? " - " . $exception : "" ) );
     $errbuf and
-      $self->_add2log( $errbuf );
-    $self->_add2log( "failing program is:\n" . $src );
+      $self->_add_log_lines( $errbuf );
+    $self->_add_log_lines( "failing program is:\n" . $src );
     $outbuf and
-      $self->_add2log( "stdout was :\n" . $outbuf );
+      $self->_add_log_lines( "stdout was :\n" . $outbuf );
 
     defined( $action_if_false ) and "CODE" eq ref( $action_if_false ) and &{$action_if_false}();
     return 0;
@@ -2453,20 +2455,77 @@ sub _get_log_fh {
   my $self = $_[0]->_get_instance();
   unless( defined( $self->{logfh} ) ) {
     my $open_mode = defined $self->{logfile_mode} ? $self->{logfile_mode} : ">";
-    open( $self->{logfh}, $open_mode, $self->{logfile} ) or croak "Could not open file $self->{logfile}: $!";
+    open( my $fh, $open_mode, $self->{logfile} ) or croak "Could not open file $self->{logfile}: $!";
+    $self->{logfh} = [ $fh ];
   }
 
   return $self->{logfh};
 }
 
-sub _add2log {
+sub _add_log_entry {
   my ($self, @logentries) = @_;
   ref($self) or $self = $self->_get_instance();
   $self->_get_log_fh();
   foreach my $logentry (@logentries) {
-    print {$self->{logfh}} "$logentry\n";
+    foreach my $fh (@{$self->{logfh}}) {
+      print {$fh} "$logentry";
+    }
   }
 
+  return;
+}
+
+sub _add_log_lines {
+  my ($self, @logentries) = @_;
+  ref($self) or $self = $self->_get_instance();
+  $self->_get_log_fh();
+  foreach my $logentry (@logentries) {
+    foreach my $fh (@{$self->{logfh}}) {
+      print {$fh} "$logentry\n";
+    }
+  }
+
+  return;
+}
+
+=head2 add_log_fh
+
+Push new file handles at end of log-handles to allow tee-ing log-output
+
+=cut
+
+sub add_log_fh {
+  my ($self, @newh) = @_;
+  $self->_get_log_fh();
+SKIP_DUP:
+  foreach my $fh (@newh) {
+    foreach my $eh (@{$self->{logfh}}) {
+      $fh == $eh and next SKIP_DUP;
+    }
+    push @{$self->{logfh}}, $fh;
+  }
+  return;
+}
+
+=head2 delete_log_fh
+
+Removes specified log file handles. This method allows you to shoot you
+in your foot - it doesn't prove whether the primary nor the last handle
+is removed. Use with caution.
+
+=cut
+
+sub delete_log_fh {
+  my ($self, @xh) = @_;
+  $self->_get_log_fh();
+SKIP_DUP:
+  foreach my $fh (@xh) {
+    foreach my $ih (0 .. $#{$self->{logfh}}) {
+      $fh == $self->{logfh}->[$ih] or next;
+      splice @{$self->{logfh}}, $ih, 1;
+      last;
+    }
+  }
   return;
 }
 
