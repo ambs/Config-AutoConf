@@ -31,3 +31,4 @@ Config-AutoConf-.*
 \bxt
 ^MYMETA\.json$
 ^MYMETA\..*$
+cover_db
