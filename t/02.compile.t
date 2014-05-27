@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 27;
+use Test::More;
 
 use Config::AutoConf;
 
@@ -113,16 +113,15 @@ TODO: {
   my @old_logfh;
   $dbuf = "";
 
-  unless($@) {
-    if ($] < 5.008) {
-      $fh = IO::String->new($dbuf);
-    }
-    else {
-      open( $fh, "+>", \$dbuf );
-    }
-    @old_logfh = @{$ac->{logfh}};
-    $ac->add_log_fh($fh);
+  if ($] < 5.008) {
+    $fh = IO::String->new($dbuf);
   }
+  else {
+    open( $fh, "+>", \$dbuf );
+  }
+  @old_logfh = @{$ac->{logfh}};
+  $ac->add_log_fh($fh);
+  cmp_ok(scalar @{$ac->{logfh}}, "==", 2, "Successfully added 2nd loghandle");
 
   ok( $ac->check_compile_perl_api(), "Could compile perl extensions" ) or diag($dbuf);
   scalar @old_logfh and $ac->delete_log_fh( $fh );
@@ -136,3 +135,5 @@ SCOPE: {
   my $insane_h = $ac->check_header("insane.h");
   is($insane_h, $ENV{ac_cv_insane_h}, "Cache override for header files work");
 }
+
+done_testing;

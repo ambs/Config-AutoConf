@@ -3,15 +3,15 @@
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More;
 
 use Config::AutoConf;
 
-END {
-  foreach my $f (<config*.*>) {
-    -e $f and unlink $f;
-  }
-}
+#END {
+#  foreach my $f (<config*.*>) {
+#    -e $f and unlink $f;
+#  }
+#}
 
 my ($ac_1, $ac_2);
 
@@ -35,20 +35,23 @@ TODO: {
   my ($fh, $fbuf, $dbuf, @old_logfh);
   $dbuf = "";
 
-  unless($@) {
-    if ($] < 5.008) {
-      require IO::String;
-      $fh = IO::String->new($dbuf);
-    }
-    else {
-      open( $fh, "+>", \$dbuf );
-    }
-    @old_logfh = @{$ac_1->{logfh}};
-    $ac_1->add_log_fh($fh);
+  if ($] < 5.008) {
+    require IO::String;
+    $fh = IO::String->new($dbuf);
   }
-  ok( $ac_1->_check_link_perl_api(), "Could link perl extensions" );
+  else {
+    open( $fh, "+>", \$dbuf );
+  }
+  @old_logfh = @{$ac_1->{logfh}};
+  $ac_1->add_log_fh($fh);
+  cmp_ok(scalar @{$ac_1->{logfh}}, "==", 2, "Successfully added 2nd loghandle");
+  ok( $ac_1->_check_link_perl_api(), "Could link perl extensions" ) or diag($dbuf);
+  diag("Foo");
   scalar @old_logfh and $ac_1->delete_log_fh( $fh );
   scalar @old_logfh and is_deeply(\@old_logfh, $ac_1->{logfh}, "add_log_fh/delete_log_fh");
   defined $fh and close($fh);
+  diag($dbuf);
   $fh = undef;
 }
+
+done_testing;
