@@ -7,11 +7,11 @@ use Test::More;
 
 use Config::AutoConf;
 
-#END {
-#  foreach my $f (<config*.*>) {
-#    -e $f and unlink $f;
-#  }
-#}
+END {
+  foreach my $f (<config*.*>) {
+    -e $f and unlink $f;
+  }
+}
 
 my ($ac_1, $ac_2);
 
@@ -22,8 +22,8 @@ TODO: {
     local $TODO = "It seems some Windows machine doesn't have -lm";
 
     ## OK, we really hope people have -lm around
-    ok($ac_1->check_lib("m", "atan"), "atan() in -lm");
     ok(!$ac_1->check_lib("m", "foobar"), "foobar() not in -lm");
+    ok($ac_1->check_lib("m", "atan"), "atan() in -lm");
 
     my $where_atan;
     ok( $where_atan = $ac_2->search_libs( "atan", [qw(m)] ), "searching lib for atan()" );
