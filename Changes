@@ -4,6 +4,7 @@ Revision history for Config-AutoConf
 	- fix for snooping smoke targets
 	- deal with older ExtUtils::MakeMaker versions (can't handle multiple
 	  authors)
+	- fix double "-lm" in negative test of libmath
 
 0.301	2014-05-26
 	- Adding log-file output tee'ing as proposed by H.Merijn Brand and
