@@ -1,5 +1,10 @@
 Revision history for Config-AutoConf
 
+0.302	2014-05-27
+	- fix for snooping smoke targets
+	- deal with older ExtUtils::MakeMaker versions (can't handle multiple
+	  authors)
+
 0.301	2014-05-26
 	- Adding log-file output tee'ing as proposed by H.Merijn Brand and
 	  rewrote tests against that API. Make perl.h compile test not TODO
