@@ -107,6 +107,7 @@ sub WriteMakefile1
         $params{PREREQ_PM} = { %{ $params{PREREQ_PM} || {} }, %{ $params{BUILD_REQUIRES} } };
         delete $params{BUILD_REQUIRES};
     }
+    $params{AUTHOR} = join( ", ", @{ $params{AUTHOR} } ) if ( $eumm_version < 6.58 and "ARRAY" eq ref $params{AUTHOR} );
     delete $params{CONFIGURE_REQUIRES}    if ( $eumm_version < 6.52 );
     delete $params{MIN_PERL_VERSION}      if ( $eumm_version < 6.48 );
     delete $params{META_MERGE}            if ( $eumm_version < 6.46 );
