@@ -1858,7 +1858,8 @@ sub _check_compile_perl_api {
   my $self = shift;
 
   my $conftest = $self->_check_perl_api_program();
-  return $self->compile_if_else($conftest);
+  $self->compile_if_else($conftest);
+
 }
 
 =head2 check_compile_perl_api
@@ -1871,7 +1872,8 @@ development environment or not (perl.h, reasonable basic checks - types, etc.)
 sub check_compile_perl_api {
   my $self = shift->_get_instance;
   my $cache_name = $self->_cache_name(qw(compile perl api));
-  return $self->check_cached( $cache_name,
+
+  $self->check_cached( $cache_name,
     "whether perl api is accessible",
     sub { $self->_check_compile_perl_api } );
 }
@@ -2433,7 +2435,12 @@ I<_default_includes> plus
 sub _default_includes_with_perl {
   my ($self) = @_;
 
-  my $include_perl = "#include <EXTERN.h>\n#include <perl.h>";
+  my $include_perl = <<"_ACEOF";
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h> /* for perl context in threaded perls */
+_ACEOF
+
   my $includes = join( "\n", $self->_default_includes, $include_perl );
 
   return $includes;
