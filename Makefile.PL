@@ -23,8 +23,6 @@ my %BUILD_DEPS = ();
 my %TEST_DEPS = ( 'Test::More' => 0.90 );
 $] < 5.008 and $TEST_DEPS{'IO::String'} = 0;
 
-$ENV{AUTOMATED_TESTING} and %TEST_DEPS = ( %TEST_DEPS, 'IO::Tee' => 0 );    ## XXX rewrite WriteMakefile1
-
 WriteMakefile1(
     META_ADD => {
         'meta-spec' => { version => 2 },
@@ -60,8 +58,7 @@ WriteMakefile1(
                 requires => {%BUILD_DEPS},
             },
             test => {
-                requires   => {%TEST_DEPS},
-                recommends => { 'IO::Tee' => 0 }
+                requires => {%TEST_DEPS},
             },
             runtime => {
                 requires   => { %RUN_DEPS, },
