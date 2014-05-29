@@ -1,5 +1,10 @@
 Revision history for Config-AutoConf
 
+0.303	2014-05-29
+	- fix perl-api check for threaded perl's (by using XSUB.h)
+	- fix non-transient linking situations in perl link check
+	- cleanup temporary test dependecies
+
 0.302	2014-05-27
 	- fix for snooping smoke targets
 	- deal with older ExtUtils::MakeMaker versions (can't handle multiple
