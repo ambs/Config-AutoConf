@@ -1898,6 +1898,7 @@ sub _check_link_perl_api {
 
   push @{$self->{extra_libs}}, "perl";
   push @{$self->{extra_link_flags}}, "-L" . File::Spec->catdir($Config{installarchlib}, "CORE");
+  $Config{perllibs} and push @{$self->{extra_link_flags}}, $Config{perllibs};
 
   my $have_libperl = $self->link_if_else( $conftest );
 
