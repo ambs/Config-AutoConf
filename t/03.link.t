@@ -31,6 +31,7 @@ TODO: {
 };
 
 TODO: {
+  -f "META.yml" or $ENV{AUTOMATED_TESTING} = 1;
   local $TODO = "Quick fix: TODO - analyse diag later" unless $ENV{AUTOMATED_TESTING};
   my ($fh, $fbuf, $dbuf, @old_logfh);
   $dbuf = "";

@@ -109,6 +109,7 @@ $fh = undef;
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
 
 TODO: {
+  -f "META.yml" or $ENV{AUTOMATED_TESTING} = 1;
   local $TODO = "Quick fix: TODO - analyse diag later" unless $ENV{AUTOMATED_TESTING};
   my @old_logfh;
   $dbuf = "";
