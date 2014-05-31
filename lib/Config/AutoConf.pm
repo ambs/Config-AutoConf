@@ -1896,9 +1896,14 @@ sub _check_link_perl_api {
   my @save_libs = @{$self->{extra_libs}};
   my @save_extra_link_flags = @{$self->{extra_link_flags}};
 
-  push @{$self->{extra_libs}}, "perl";
   push @{$self->{extra_link_flags}}, "-L" . File::Spec->catdir($Config{installarchlib}, "CORE");
-  $Config{perllibs} and push @{$self->{extra_link_flags}}, $Config{perllibs};
+  if($Config{perllibs}) {
+    foreach my $perllib (split(" ", $Config{perllibs})) {
+      $perllib =~ m/^\-l(\w+)$/ and push @{$self->{extra_libs}}, "$1" and next;
+      push @{$self->{extra_link_flags}}, $perllib;
+    }
+  }
+  push @{$self->{extra_libs}}, "perl";
 
   my $have_libperl = $self->link_if_else( $conftest );
 
