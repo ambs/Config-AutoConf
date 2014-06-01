@@ -1,5 +1,11 @@
 Revision history for Config-AutoConf
 
+0.304	2014-06-01
+	- improve dealing with whitespaces in path's of programs
+	- reorder -lperl and $Config{perllibs} - let's see if that covers
+	  all smokers
+	- some minor speed improvements (micro-optimization, but ...)
+
 0.303	2014-05-29
 	- fix perl-api check for threaded perl's (by using XSUB.h)
 	- fix non-transient linking situations in perl link check
