@@ -156,9 +156,7 @@ sub new {
     logfile => "config.log",
     %args
   );
-  my $self = bless( \%instance, $class );
-
-  return $self;
+  bless( \%instance, $class );
 }
 
 =head2 check_file
@@ -170,10 +168,8 @@ don't need to use a function call.
 =cut
 
 sub check_file {
-  my $self = shift;
-  my $file = shift;
-
-  return (-f $file && -r $file);
+  my ($self, $file) = @_;
+  -f $file && -r $file;
 }
 
 
@@ -191,7 +187,13 @@ sub check_files {
     return 0 unless $self->check_file($_)
   }
 
-  return 1;
+  1;
+}
+
+sub _sanitize_prog {
+  my ($self, $prog) = @_;
+  (scalar Text::ParseWords::shellwords $prog) > 1 and $prog = QUOTE . $prog . QUOTE;
+  $prog;
 }
 
 my @exe_exts = ( $^O eq "MSWin32" ? qw(.exe .com .bat .cmd) : ("") );
@@ -217,7 +219,7 @@ sub check_prog {
 
   for my $p (@dirlist) {
     for my $e (@exe_exts) {
-      my $cmd = File::Spec->catfile($p,$ac_prog.$e);
+      my $cmd = $self->_sanitize_prog(File::Spec->catfile($p,$ac_prog.$e));
       return $cmd if -x $cmd;
     }
   }
@@ -250,10 +252,8 @@ sub check_progs {
 }
 
 sub _append_prog_args {
-  my $self = shift;
-  my $prog = shift;
-  (scalar Text::ParseWords::shellwords $prog) > 1 and $prog = QUOTE . $prog . QUOTE;
-  return join(" ", $prog, @_);
+  my ($self, $prog) = @_;
+  join(" ", $self->_sanitize_prog($prog), @_);
 }
 
 =head2 check_prog_yacc
