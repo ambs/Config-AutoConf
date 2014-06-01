@@ -32,3 +32,4 @@ Config-AutoConf-.*
 ^MYMETA\.json$
 ^MYMETA\..*$
 cover_db
+nytprof

@@ -2,6 +2,7 @@ blib/
 .build/
 _build/
 cover_db/
+nytprof/
 inc/
 Build
 !Build/
