@@ -19,7 +19,7 @@ ok( $ac_1 = Config::AutoConf->new( logfile => "config3.log" ), "Instantiating Co
 ok( $ac_2 = Config::AutoConf->new( logfile => "config4.log" ), "Instantiating Config::AutoConf for search_libs() tests" );
 
 TODO: {
-    local $TODO = "It seems some Windows machine doesn't have -lm";
+    local $TODO = "It seems some Windows machine doesn't have -lm" if $^O eq "MSWin32";
 
     ## OK, we really hope people have -lm around
     ok(!$ac_1->check_lib("m", "foobar"), "foobar() not in -lm");
