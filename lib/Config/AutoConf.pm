@@ -275,7 +275,7 @@ sub check_prog_yacc {
 # my ($self, $cache_name, $message, $check_sub) = @_;
 
   my $cache_name = $self->_cache_name("prog", "YACC");
-  return $self->check_cached( $cache_name, "for yacc",
+  $self->check_cached( $cache_name, "for yacc",
     sub {
       defined $ENV{YACC} and return $ENV{YACC};
       my $binary = $self->check_progs(qw/bison byacc yacc/);
@@ -302,7 +302,7 @@ Note that it returns the full path, if found.
 sub check_prog_awk {
   my $self = shift;
   my $cache_name = $self->_cache_name("prog", "AWK");
-  return $self->check_cached( $cache_name, "for awk",
+  $self->check_cached( $cache_name, "for awk",
     sub {$ENV{AWK} || $self->check_progs(qw/gawk mawk nawk awk/)} );
 }
 
@@ -324,7 +324,7 @@ sub check_prog_egrep {
   my $self = shift;
 
   my $cache_name = $self->_cache_name("prog", "EGREP");
-  return $self->check_cached( $cache_name, "for egrep",
+  $self->check_cached( $cache_name, "for egrep",
     sub {
       defined $ENV{EGREP} and return $ENV{EGREP};
       my $grep;
@@ -436,7 +436,7 @@ EOLEX
     defined $self->{lex}->{lib} or $self->{lex}->{lib} = $lex_lib;
   }
 
-  return $lex;
+  $lex;
 }
 
 
@@ -459,7 +459,7 @@ Note that it returns the full path, if found.
 sub check_prog_sed {
   my $self = shift;
   my $cache_name = $self->_cache_name("prog", "SED");
-  return $self->check_cached( $cache_name, "for sed",
+  $self->check_cached( $cache_name, "for sed",
     sub {$ENV{SED} || $self->check_progs(qw/gsed sed/)} );
 }
 
@@ -473,7 +473,7 @@ Checks for C<pkg-config> program. No additional tests are made for it ...
 sub check_prog_pkg_config {
   my $self = shift->_get_instance();
   my $cache_name = $self->_cache_name("prog", "PKG_CONFIG");
-  return $self->check_cached( $cache_name, "for pkg-config",
+  $self->check_cached( $cache_name, "for pkg-config",
     sub {$self->check_prog("pkg-config")} );
 }
 
@@ -511,9 +511,9 @@ my @_num_to_msg = qw/no yes/;
 
 sub _neat
 {
-    defined $_[0] or return "";
-    looks_like_number( $_[0] ) and defined $_num_to_msg[$_[0]] and return $_num_to_msg[$_[0]];
-    return $_[0];
+  defined $_[0] or return "";
+  looks_like_number( $_[0] ) and defined $_num_to_msg[$_[0]] and return $_num_to_msg[$_[0]];
+  $_[0];
 }
 
 sub msg_result {
@@ -660,7 +660,7 @@ sub push_lang {
 
   push @{$self->{lang_stack}}, [ $self->{lang} ];
 
-  return $self->_set_language( @_ );
+  $self->_set_language( @_ );
 }
 
 =head2 pop_lang([ lang ])
@@ -678,7 +678,7 @@ sub pop_lang {
   defined( $_[0] ) and $self->{lang} ne $_[0] and
     croak( "pop_lang( $_[0] ) doesn't match language in use (" . $self->{lang} . ")" );
 
-  return $self->_set_language( @{ pop @{ $self->{lang} } } );
+  $self->_set_language( @{ pop @{ $self->{lang} } } );
 }
 
 =head2 lang_call( [prologue], function )
@@ -690,8 +690,8 @@ includes are used.
 =cut
 
 sub lang_call {
-  my $self = shift->_get_instance();
-  my ($prologue, $function) = @_;
+  my ($self, $prologue, $function) = @_;
+  ref $self or $self = $self->_get_instance();
 
   defined( $prologue ) or $prologue = $self->_default_includes();
   $prologue .= <<"_ACEOF";
@@ -709,11 +709,7 @@ _ACEOF
   my $body = "return $function ();";
   $body = $self->_build_main( $body );
 
-  my $conftest  = $self->_fill_defines();
-     $conftest .= "\n$prologue\n";
-     $conftest .= "\n$body\n";
-
-  return $conftest;
+  $self->_fill_defines() . "\n$prologue\n\n$body\n";
 }
 
 =head2 lang_build_program( prologue, body )
@@ -752,18 +748,14 @@ will create
 =cut
 
 sub lang_build_program {
-  my $self = shift->_get_instance();
-  my ($prologue, $body) = @_;
+  my ($self, $prologue, $body) = @_;
+  ref $self or $self = $self->_get_instance();
 
   defined( $prologue ) or $prologue = $self->_default_includes();
   defined( $body ) or $body = "";
   $body = $self->_build_main( $body );
 
-  my $conftest  = $self->_fill_defines();
-     $conftest .= "\n$prologue\n";
-     $conftest .= "\n$body\n";
-
-  return $conftest;
+  $self->_fill_defines() . "\n$prologue\n\n$body\n";
 }
 
 =head2 lang_build_bool_test (prologue, test, [@decls])
@@ -775,8 +767,8 @@ before the test code at the variable definition place.
 =cut
 
 sub lang_build_bool_test {
-  my $self = shift->_get_instance();
-  my ($prologue, $test, @decls) = @_;
+  my ($self, $prologue, $test, @decls) = @_;
+  ref $self or $self = $self->_get_instance();
 
   defined( $test ) or $test = "1";
   my $test_code = <<ACEOF;
@@ -786,7 +778,7 @@ ACEOF
   if( @decls ) {
     $test_code = join( "\n", @decls, $test_code );
   }
-  return $self->lang_build_program( $prologue, $test_code );
+  $self->lang_build_program( $prologue, $test_code );
 }
 
 =head2 push_includes
@@ -798,8 +790,8 @@ which might be created during the build.
 =cut
 
 sub push_includes {
-  my $self = shift->_get_instance();
-  my @includes = @_;
+  my ($self, @includes) = @_;
+  ref $self or $self = $self->_get_instance();
 
   push( @{$self->{extra_include_dirs}}, @includes );
 
@@ -813,8 +805,8 @@ Adds given flags to the parameter list for preprocessor invocation.
 =cut
 
 sub push_preprocess_flags {
-  my $self = shift->_get_instance();
-  my @cpp_flags = @_;
+  my ($self, @cpp_flags) = @_;
+  ref $self or $self = $self->_get_instance();
 
   push( @{$self->{extra_preprocess_flags}}, @cpp_flags );
 
@@ -828,8 +820,8 @@ Adds given flags to the parameter list for compiler invocation.
 =cut
 
 sub push_compiler_flags {
-  my $self = shift->_get_instance();
-  my @compiler_flags = @_;
+  my ($self, @compiler_flags) = @_;
+  ref $self or $self = $self->_get_instance();
   my $lang = $self->{lang};
 
   if( scalar( @compiler_flags ) && ( ref($compiler_flags[-1]) eq "HASH" ) ) {
@@ -851,8 +843,8 @@ Adds given list of libraries to the parameter list for linker invocation.
 =cut
 
 sub push_libraries {
-  my $self = shift->_get_instance();
-  my @libs = @_;
+  my ($self, @libs) = @_;
+  ref $self or $self = $self->_get_instance();
 
   push( @{$self->{extra_libs}}, @libs );
 
@@ -866,8 +858,8 @@ Adds given list of library paths to the parameter list for linker invocation.
 =cut
 
 sub push_library_paths {
-  my $self = shift->_get_instance();
-  my @libdirs = @_;
+  my ($self, @libdirs) = @_;
+  ref $self or $self = $self->_get_instance();
 
   push( @{$self->{extra_lib_dirs}}, @libdirs );
 
@@ -881,8 +873,8 @@ Adds given flags to the parameter list for linker invocation.
 =cut
 
 sub push_link_flags {
-  my $self = shift->_get_instance();
-  my @link_flags = @_;
+  my ($self, @link_flags) = @_;
+  ref $self or $self = $self->_get_instance();
 
   push( @{$self->{extra_link_flags}}, @link_flags );
 
@@ -903,7 +895,7 @@ sub compile_if_else {
   ref $self or $self = $self->_get_instance();
   my $builder = $self->_get_builder();
 
-  my ($fh, $filename) = tempfile( "testXXXXXX", SUFFIX => '.c');
+  my ($fh, $filename) = tempfile("testXXXXXX", SUFFIX => '.c', , UNLINK => 0);
 
   print {$fh} $src;
   close $fh;
@@ -936,7 +928,7 @@ sub compile_if_else {
   }
 
   defined( $action_if_true ) and "CODE" eq ref( $action_if_true ) and &{$action_if_true}();
-  return 1;
+  1;
 }
 
 =head2 link_if_else( $src [, action-if-true [, action-if-false ] ] )
@@ -1011,7 +1003,7 @@ sub link_if_else {
   }
 
   defined( $action_if_true ) and "CODE" eq ref( $action_if_true ) and &{$action_if_true}();
-  return 1;
+  1;
 }
 
 =head2 check_cached( cache-var, message, sub-to-check )
@@ -1038,7 +1030,7 @@ sub check_cached {
     $self->msg_result( $self->{cache}->{$cache_name} );
   }
 
-  return $self->{cache}->{$cache_name};
+  $self->{cache}->{$cache_name};
 }
 
 =head2 cache_val
@@ -1048,10 +1040,10 @@ This functions returns the value of a previously check_cached call.
 =cut
 
 sub cache_val {
-  my $self = shift->_get_instance();
-  my $cache_name = shift;
+  my ($self, $cache_name) = @_;
+  ref $self or $self = $self->_get_instance();
   defined $self->{cache}->{$cache_name} or return;
-  return $self->{cache}->{$cache_name};
+  $self->{cache}->{$cache_name};
 }
 
 =head2 check_decl( symbol, [action-if-found], [action-if-not-found], [prologue = default includes] )
@@ -1108,10 +1100,10 @@ ACEOF
       }
     }
 
-    return $have_decl;
+    $have_decl;
   };
 
-  return $self->check_cached( $cache_name, "whether $symbol is declared", $check_sub );
+  $self->check_cached( $cache_name, "whether $symbol is declared", $check_sub );
 }
 
 =head2 check_decls( symbols, [action-if-found], [action-if-not-found], [prologue = default includes] )
@@ -1147,7 +1139,7 @@ sub check_decls {
     }
   }
 
-  return $have_syms;
+  $have_syms;
 }
 
 sub _have_type_define_name {
@@ -1155,7 +1147,7 @@ sub _have_type_define_name {
   my $have_name = "HAVE_" . uc($type);
   $have_name =~ tr/*/P/;
   $have_name =~ tr/_A-Za-z0-9/_/c;
-  return $have_name;
+  $have_name;
 }
 
 =head2 check_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1179,8 +1171,8 @@ This method caches its result in the C<ac_cv_type_>type variable.
 sub check_type {
   my ($self, $type, $action_if_found, $action_if_not_found, $prologue) = @_;
   $self = $self->_get_instance();
-  defined( $type ) or return; # XXX prefer croak
-  ref( $type ) eq "" or return;
+  defined $type or return; # XXX prefer croak
+  ref $type eq "" or return;
 
   my $cache_name = $self->_cache_type_name( "type", $type );
   my $check_sub = sub {
@@ -1204,10 +1196,10 @@ ACEOF
       }
     }
 
-    return $have_type;
+    $have_type;
   };
 
-  return $self->check_cached( $cache_name, "for $type", $check_sub );
+  $self->check_cached( $cache_name, "for $type", $check_sub );
 }
 
 =head2 check_types (types, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1240,7 +1232,7 @@ sub check_types {
     }
   }
 
-  return $have_types;
+  $have_types;
 }
 
 sub _compute_int_compile {
@@ -1325,10 +1317,10 @@ sub compute_int {
       }
     }
 
-    return $val;
+    $val;
   };
 
-  return $self->check_cached( $cache_name, "for compute result of ($expr)", $check_sub );
+  $self->check_cached( $cache_name, "for compute result of ($expr)", $check_sub );
 }
 
 sub _sizeof_type_define_name {
@@ -1336,7 +1328,7 @@ sub _sizeof_type_define_name {
   my $have_name = "SIZEOF_" . uc($type);
   $have_name =~ tr/*/P/;
   $have_name =~ tr/_A-Za-z0-9/_/c;
-  return $have_name;
+  $have_name;
 }
 
 =head2 check_sizeof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1387,10 +1379,10 @@ sub check_sizeof_type {
       }
     }
 
-    return $typesize;
+    $typesize;
   };
 
-  return $self->check_cached( $cache_name, "for size of $type", $check_sub );
+  $self->check_cached( $cache_name, "for size of $type", $check_sub );
 }
 
 =head2 check_sizeof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1423,7 +1415,7 @@ sub check_sizeof_types {
     }
   }
 
-  return $have_sizes;
+  $have_sizes;
 }
 
 sub _alignof_type_define_name {
@@ -1431,7 +1423,7 @@ sub _alignof_type_define_name {
   my $have_name = "ALIGNOF_" . uc($type);
   $have_name =~ tr/*/P/;
   $have_name =~ tr/_A-Za-z0-9/_/c;
-  return $have_name;
+  $have_name;
 }
 
 =head2 check_alignof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1489,10 +1481,10 @@ sub check_alignof_type {
       }
     }
 
-    return $typealign;
+    $typealign;
   };
 
-  return $self->check_cached( $cache_name, "for align of $type", $check_sub );
+  $self->check_cached( $cache_name, "for align of $type", $check_sub );
 }
 
 =head2 check_alignof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1525,14 +1517,14 @@ sub check_alignof_types {
     }
   }
 
-  return $have_aligns;
+  $have_aligns;
 }
 
 sub _have_member_define_name {
   my $member = $_[0];
   my $have_name = "HAVE_" . uc($member);
   $have_name =~ tr/_A-Za-z0-9/_/c;
-  return $have_name;
+  $have_name;
 }
 
 =head2 check_member (member, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1590,10 +1582,10 @@ ACEOF
       }
     }
 
-    return $have_member;
+    $have_member;
   };
 
-  return $self->check_cached( $cache_name, "for $type.$member", $check_sub );
+  $self->check_cached( $cache_name, "for $type.$member", $check_sub );
 }
 
 =head2 check_members (members, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1626,7 +1618,7 @@ sub check_members {
     }
   }
 
-  return $have_members;
+  $have_members;
 }
 
 =head2 check_headers
@@ -1638,11 +1630,7 @@ be included and compiled by the available compiler. Returns the name of the firs
 
 sub check_headers {
   my $self = shift;
-
-  for (@_) {
-    return $_ if $self->check_header($_)
-  }
-
+  $self->check_header($_) and return $_ for(@_);
   return;
 }
 
@@ -1662,9 +1650,8 @@ _ACEOF
   my $conftest = $self->lang_build_program( $prologue, $body );
 
   my $have_header = $self->compile_if_else( $conftest );
-  return $have_header;
+  $have_header;
 }
-
 
 =head2 check_header
 
@@ -1700,7 +1687,7 @@ sub check_header {
     return $have_header;
   };
 
-  return $self->check_cached( $cache_name, "for $header", $check_sub );
+  $self->check_cached( $cache_name, "for $header", $check_sub );
 }
 
 =head2 check_all_headers
@@ -1716,7 +1703,7 @@ sub check_all_headers {
   foreach my $header (@_) {
     $rc &= $self->check_header( $header );
   }
-  return $rc;
+  $rc;
 }
 
 =head2 check_stdc_headers
@@ -1738,10 +1725,8 @@ sub check_stdc_headers {
     $rc &= $self->check_all_headers( qw/locale.h math.h setjmp.h signal.h/ );
     $rc &= $self->check_all_headers( qw/stddef.h stdio.h time.h/ );
   }
-  if( $rc ) {
-    $self->define_var( "STDC_HEADERS", 1, "Define to 1 if you have the ANSI C header files." );
-  }
-  return $rc;
+  $rc and $self->define_var( "STDC_HEADERS", 1, "Define to 1 if you have the ANSI C header files." );
+  $rc;
 }
 
 =head2 check_default_headers
@@ -1754,7 +1739,7 @@ sys/types.h, sys/stat.h, memory.h, strings.h, inttypes.h, stdint.h and unistd.h
 sub check_default_headers {
   my $self = shift->_get_instance();
   my $rc = $self->check_stdc_headers() and $self->check_all_headers( qw(sys/types.h sys/stat.h memory.h strings.h inttypes.h stdint.h unistd.h) );
-  return $rc;
+  $rc;
 }
 
 =head2 check_dirent_header
@@ -1812,11 +1797,11 @@ sub check_dirent_header {
       $have_dirent and $have_dirent = $header and last;
     }
 
-    return $have_dirent;
+    $have_dirent;
   };
 
 
-  return $self->check_cached( $cache_name, "for header defining DIR *", $check_sub );
+  $self->check_cached( $cache_name, "for header defining DIR *", $check_sub );
 }
 
 sub _have_lib_define_name {
@@ -1842,9 +1827,7 @@ sub _check_perl_api_program {
   SV *foo = newSVpv("Perl rocks", 11);
   rc = SvCUR(foo);
 EOB
-  my $conftest = $self->lang_build_program( $includes, $perl_check_body );
-
-  return $conftest;
+  $self->lang_build_program( $includes, $perl_check_body );
 }
 
 =head2 _check_compile_perl_api
@@ -1859,7 +1842,6 @@ sub _check_compile_perl_api {
 
   my $conftest = $self->_check_perl_api_program();
   $self->compile_if_else($conftest);
-
 }
 
 =head2 check_compile_perl_api
@@ -1910,7 +1892,7 @@ sub _check_link_perl_api {
   $self->{extra_libs} = [ @save_libs ];
   $self->{extra_link_flags} = [ @save_extra_link_flags ];
 
-  return $have_libperl;
+  $have_libperl;
 }
 
 =head2 check_lm( [ action-if-found ], [ action-if-not-found ] )
@@ -1925,23 +1907,22 @@ I<action-if-not-found> is run. Otherwise, I<action-if-found> is run.
 =cut
 
 sub check_lm {
-    my ($self, $aif, $ainf) = @_;
-    ref($self) or $self = $self->_get_instance();
+  my ($self, $aif, $ainf) = @_;
+  ref($self) or $self = $self->_get_instance();
 
-    my $fail = 0;
-    my $required = "";
-    for my $func (qw(log2 pow log10 log exp sqrt)) {
+  my $fail = 0;
+  my $required = "";
+  for my $func (qw(log2 pow log10 log exp sqrt)) {
+    my $ans = $self->search_libs( $func, ['m'] );
 
-        my $ans = $self->search_libs( $func, ['m'] );
+    $ans or $fail = 1;
+    ($ans ne "none required") and $required = $ans;
+  }
 
-        $ans or $fail = 1;
-        ($ans ne "none required") and $required = $ans;
-    }
+  if ($fail) { $ainf && $ainf->() }
+  else       { $aif  && $aif->() }
 
-    if ($fail) { $ainf && $ainf->() }
-    else       { $aif  && $aif->() }
-
-    return $required;
+  $required;
 }
 
 =head2 check_lib( lib, func, [ action-if-found ], [ action-if-not-found ], [ @other-libs ] )
@@ -1973,47 +1954,47 @@ It's recommended to use L<search_libs> instead of check_lib these days.
 =cut
 
 sub check_lib {
-    my ( $self, $lib, $func, $action_if_found, $action_if_not_found, @other_libs ) = @_;
-    ref($self) or $self = $self->_get_instance();
+  my ( $self, $lib, $func, $action_if_found, $action_if_not_found, @other_libs ) = @_;
+  ref($self) or $self = $self->_get_instance();
 
-    return 0 unless $lib;
-    return 0 unless $func;
+  return 0 unless $lib;
+  return 0 unless $func;
 
-    scalar( @other_libs ) == 1 and ref( $other_libs[0] ) eq "ARRAY"
-      and @other_libs = @{ $other_libs[0] };
+  scalar( @other_libs ) == 1 and ref( $other_libs[0] ) eq "ARRAY"
+    and @other_libs = @{ $other_libs[0] };
 
-    my $cache_name = $self->_cache_name( "lib", $lib, $func );
-    my $check_sub = sub {
-        my $conftest = $self->lang_call( "", $func );
+  my $cache_name = $self->_cache_name( "lib", $lib, $func );
+  my $check_sub = sub {
+    my $conftest = $self->lang_call( "", $func );
 
-        my @save_libs = @{$self->{extra_libs}};
-        push( @{$self->{extra_libs}}, $lib, @other_libs );
-        my $have_lib = $self->link_if_else( $conftest );
-        $self->{extra_libs} = [ @save_libs ];
+    my @save_libs = @{$self->{extra_libs}};
+    push( @{$self->{extra_libs}}, $lib, @other_libs );
+    my $have_lib = $self->link_if_else( $conftest );
+    $self->{extra_libs} = [ @save_libs ];
 
-        if( $have_lib ) {
-            if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
-                &{$action_if_found}();
-            }
-            else {
-                $self->define_var( _have_lib_define_name( $lib ), $have_lib,
-                                   "defined when library $lib is available" );
-                push( @{$self->{extra_libs}}, $lib );
-            }
-        }
-        else {
-            if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
-                &{$action_if_not_found}();
-            }
-            else {
-                $self->define_var( _have_lib_define_name( $lib ), undef,
-                                   "defined when library $lib is available" );
-            }
-        }
-        return $have_lib;
-    };
+    if( $have_lib ) {
+      if( defined( $action_if_found ) and "CODE" eq ref( $action_if_found ) ) {
+	&{$action_if_found}();
+      }
+      else {
+	$self->define_var( _have_lib_define_name( $lib ), $have_lib,
+			   "defined when library $lib is available" );
+	push( @{$self->{extra_libs}}, $lib );
+      }
+    }
+    else {
+      if( defined( $action_if_not_found ) and "CODE" eq ref( $action_if_not_found ) ) {
+	&{$action_if_not_found}();
+      }
+      else {
+	$self->define_var( _have_lib_define_name( $lib ), undef,
+			   "defined when library $lib is available" );
+      }
+    }
+    $have_lib;
+  };
 
-    return $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
+  $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
 }
 
 =head2 search_libs( function, search-libs, [action-if-found], [action-if-not-found], [other-libs] )
@@ -2102,58 +2083,46 @@ found or not.
 
 my $_pkg_config_prog;
 
-sub _pkg_config_flag
-{
-    defined $_pkg_config_prog or croak("pkg_config_prog required");
-    my @pkg_config_args = @_;
-    my ( $stdout, $stderr, $exit ) =
-      capture { system( $_pkg_config_prog, @pkg_config_args ); };
-    chomp $stdout;
-    0 == $exit and return $stdout;
-    return;
+sub _pkg_config_flag {
+  defined $_pkg_config_prog or croak("pkg_config_prog required");
+  my @pkg_config_args = @_;
+  my ( $stdout, $stderr, $exit ) =
+    capture { system( $_pkg_config_prog, @pkg_config_args ); };
+  chomp $stdout;
+  0 == $exit and return $stdout;
+  return;
 }
 
-sub pkg_config_package_flags
-{
-    my ( $self, $package, $action_if_found, $action_if_not_found ) = @_;
-    $self = $self->_get_instance();
-    (my $pkgpfx = $package) =~ s/^(\w+).*?$/$1/;
-    my $cache_name = $self->_cache_name( "pkg", $pkgpfx );
-    defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
-    my $check_sub = sub {
-	my ( @pkg_cflags, @pkg_libs );
+sub pkg_config_package_flags {
+  my ( $self, $package, $action_if_found, $action_if_not_found ) = @_;
+  $self = $self->_get_instance();
+  (my $pkgpfx = $package) =~ s/^(\w+).*?$/$1/;
+  my $cache_name = $self->_cache_name( "pkg", $pkgpfx );
+  defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
+  my $check_sub = sub {
+    my ( @pkg_cflags, @pkg_libs );
 
-        (my $ENV_CFLAGS = $package) =~ s/^(\w+).*?$/$1_CFLAGS/;
-	my $CFLAGS = defined $ENV{$ENV_CFLAGS} ? $ENV{$ENV_CFLAGS}
-	                                       : _pkg_config_flag($package, "--cflags");
-        $CFLAGS and @pkg_cflags = (
-            map {
-                $_ =~ s/^\s+//;
-                $_ =~ s/\s+$//;
-                Text::ParseWords::shellwords $_;
-              } split( m/\n/, $CFLAGS )
-          )
-	  and push @{ $self->{extra_preprocess_flags} }, @pkg_cflags;
-	  # and push @{ $self->{extra_compile_flags}->{"C"} }, @pkg_cflags;
-# XXX extra_preprocess_flags
+    (my $ENV_CFLAGS = $package) =~ s/^(\w+).*?$/$1_CFLAGS/;
+    my $CFLAGS = defined $ENV{$ENV_CFLAGS} ? $ENV{$ENV_CFLAGS}
+					   : _pkg_config_flag($package, "--cflags");
+    $CFLAGS and @pkg_cflags = (
+      map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; Text::ParseWords::shellwords $_; }
+      split( m/\n/, $CFLAGS )
+    ) and push @{ $self->{extra_preprocess_flags} }, @pkg_cflags;
 
-        (my $ENV_LIBS = $package) =~ s/^(\w+).*?$/$1_LIBS/;
-        # do not separate between libs and extra (for now) - they come with -l prepended
-	my $LIBS = defined $ENV{$ENV_LIBS} ? $ENV{$ENV_LIBS}
-	                                   : _pkg_config_flag($package, "--libs");
-        $LIBS and @pkg_libs = (
-            map {
-                $_ =~ s/^\s+//;
-                $_ =~ s/\s+$//;
-                Text::ParseWords::shellwords $_;
-              } split( m/\n/, $LIBS )
-          )
-	  and push @{ $self->{extra_link_flags} }, @pkg_libs;
+    (my $ENV_LIBS = $package) =~ s/^(\w+).*?$/$1_LIBS/;
+    # do not separate between libs and extra (for now) - they come with -l prepended
+    my $LIBS = defined $ENV{$ENV_LIBS} ? $ENV{$ENV_LIBS}
+				       : _pkg_config_flag($package, "--libs");
+    $LIBS and @pkg_libs = (
+      map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; Text::ParseWords::shellwords $_; }
+      split( m/\n/, $LIBS )
+    ) and push @{ $self->{extra_link_flags} }, @pkg_libs;
 
-	return join(" ", @pkg_cflags, @pkg_libs);
-    };
+    join(" ", @pkg_cflags, @pkg_libs);
+  };
 
-    return $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
+  $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
 }
 
 =head2 _check_pureperl_build_wanted
@@ -2174,7 +2143,7 @@ sub _check_mm_pureperl_build_wanted {
     $arg =~ m/^PUREPERL_ONLY=(.*)$/ and return $self->{_force_xs} = 0 + !! $1;
   }
 
-  return 0;
+  0;
 }
 
 =head2 _check_pureperl_build_wanted
@@ -2193,7 +2162,7 @@ sub _check_mb_pureperl_build_wanted {
     $arg eq "--pureperl-only" and return 1;
   }
 
-  return 0;
+  0;
 }
 
 =head2 _check_pureperl_build_wanted
@@ -2211,7 +2180,7 @@ sub _check_pureperl_build_wanted {
   $0 =~ m/Makefile\.PL$/i and goto \&_check_mm_pureperl_build_wanted;
   $0 =~ m/Build\.PL$/i and goto \&_check_mb_pureperl_build_wanted;
 
-  return 0;
+  0;
 }
 
 =head2 check_pureperl_build_wanted
@@ -2225,7 +2194,7 @@ might lead to further checks, eg. L</_check_compile_perl_api>.
 sub check_pureperl_build_wanted {
   my $self = shift->_get_instance;
   my $cache_name = $self->_cache_name(qw(pureperl only wanted));
-  return $self->check_cached( $cache_name,
+  $self->check_cached( $cache_name,
     "whether pureperl shall be forced",
     sub { $self->_check_pureperl_build_wanted } );
 }
@@ -2259,15 +2228,13 @@ sub _sanitize {
   $x =~ s/ //g;
   $x =~ s/\///g;
   $x =~ s/\\//g;
-  return $x;
+  $x;
 }
 
 sub _get_instance {
-  my $class = shift;
-  ref $class and return $class;
-  defined( $glob_instance ) and ref( $glob_instance ) and return $glob_instance;
-  $glob_instance = $class->new();
-  return $glob_instance;
+  ref $_[0] and return $_[0];
+  defined $glob_instance or $glob_instance = $_[0]->new();
+  $glob_instance;
 }
 
 sub _get_builder {
@@ -2282,8 +2249,7 @@ sub _get_builder {
       $builder->{config}{lddlflags} =~ s/-arch \S+//g;
       $builder->{config}{ldflags} =~ s/-arch \S+//g;
   }
-  return $builder;
-
+  $builder;
 }
 
 sub _set_language {
@@ -2320,7 +2286,7 @@ sub _fill_defines {
   }
   $conftest .= "/* end of conftest.h */\n";
 
-  return $conftest;
+  $conftest;
 }
 
 #
@@ -2368,8 +2334,7 @@ from autoconf/headers.m4:
 
 =cut
 
-sub _default_includes {
-  my $conftest .= <<"_ACEOF";
+my $_default_includes = <<"_ACEOF";
 #include <stdio.h>
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -2405,27 +2370,25 @@ sub _default_includes {
 #endif
 _ACEOF
 
-  return $conftest;
-}
 
-sub _default_main {
-  return $_[0]->_build_main("");
-}
+sub _default_includes { $_default_includes }
 
-sub _build_main {
-  my $self = shift->_get_instance();
-  my $body = shift || "";
+sub _default_main { $_[0]->_build_main("") }
 
-  my $conftest .= <<"_ACEOF";
+my $_main_tpl = <<"_ACEOF";
   int
   main ()
   {
-    $body;
+    %s;
     return 0;
   }
 _ACEOF
 
-  return $conftest;
+
+sub _build_main {
+  my $self = shift->_get_instance();
+  my $body = shift || "";
+  sprintf($_main_tpl, $body);
 }
 
 =head2 _default_includes_with_perl
@@ -2438,30 +2401,23 @@ I<_default_includes> plus
 
 =cut
 
-sub _default_includes_with_perl {
-  my ($self) = @_;
-
-  my $include_perl = <<"_ACEOF";
+my $_include_perl = <<"_ACEOF";
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h> /* for perl context in threaded perls */
 _ACEOF
 
-  my $includes = join( "\n", $self->_default_includes, $include_perl );
-
-  return $includes;
+sub _default_includes_with_perl {
+  join( "\n", $_[0]->_default_includes, $_include_perl );
 }
 
-
-sub _cache_prefix {
-  return "ac";
-}
+sub _cache_prefix { "ac" }
 
 sub _cache_name {
   my ($self, @names) = @_;
   my $cache_name = join( "_", $self->_cache_prefix(), "cv", @names );
      $cache_name =~ tr/_A-Za-z0-9/_/c;
-  return $cache_name;
+  $cache_name;
 }
 
 sub _get_log_fh {
@@ -2472,7 +2428,7 @@ sub _get_log_fh {
     $self->{logfh} = [ $fh ];
   }
 
-  return $self->{logfh};
+  $self->{logfh};
 }
 
 sub _add_log_entry {
@@ -2492,10 +2448,9 @@ sub _add_log_lines {
   my ($self, @logentries) = @_;
   ref($self) or $self = $self->_get_instance();
   $self->_get_log_fh();
-  foreach my $logentry (@logentries) {
-    foreach my $fh (@{$self->{logfh}}) {
-      print {$fh} "$logentry\n";
-    }
+  my $logmsg = join("\n", @logentries) . "\n";
+  foreach my $fh (@{$self->{logfh}}) {
+    print {$fh} $logmsg;
   }
 
   return;
@@ -2544,21 +2499,21 @@ SKIP_DUP:
 
 sub _cache_type_name  {
   my ($self, @names) = @_;
-  return $self->_cache_name( map { $_ =~ tr/*/p/; $_ } @names );
+  $self->_cache_name( map { $_ =~ tr/*/p/; $_ } @names );
 }
 
 sub _get_extra_compiler_flags {
   my $self = shift->_get_instance();
   my @ppflags = @{$self->{extra_preprocess_flags}};
   my @cflags = @{$self->{extra_compile_flags}->{ $self->{lang} }};
-  return join( " ", @ppflags, @cflags );
+  join( " ", @ppflags, @cflags );
 }
 
 sub _get_extra_linker_flags {
   my $self = shift->_get_instance();
   my @libs = @{$self->{extra_libs}};
   my @ldflags = @{$self->{extra_link_flags}};
-  return join( " ", @ldflags, map { "-l$_" } @libs );
+  join( " ", @ldflags, map { "-l$_" } @libs );
 }
 
 =head1 AUTHOR
