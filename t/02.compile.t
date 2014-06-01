@@ -7,11 +7,11 @@ use Test::More;
 
 use Config::AutoConf;
 
-#END {
-#  foreach my $f (<config*.*>) {
-#    -e $f and unlink $f;
-#  }
-#}
+END {
+  foreach my $f (<config*.*>) {
+    -e $f and unlink $f;
+  }
+}
 
 ## OK, we really hope people have sdtio.h around
 ok(Config::AutoConf->check_header("stdio.h"));
