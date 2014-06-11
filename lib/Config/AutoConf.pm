@@ -136,6 +136,10 @@ sub new {
   ref $class and $class = ref $class;
   my %args = @_;
 
+  my %flags = map {
+    my ($k, $v) = split("=", $_, 2); defined $v or $v = 1; ($k, $v)
+  } split( ":", $ENV{PERL5CAC_OPTS} ) if($ENV{PERL5CAC_OPTS});
+
   my %instance = (
     msg_prefix => 'configure: ',
     lang => "C",
@@ -154,6 +158,7 @@ sub new {
     },
     extra_link_flags => [],
     logfile => "config.log",
+    c_ac_flags => {%flags},
     %args
   );
   bless( \%instance, $class );
@@ -1895,6 +1900,23 @@ sub _check_link_perl_api {
   $have_libperl;
 }
 
+=head2 check_link_perl_api
+
+This method can be used from other checks to prove whether we have a perl
+development environment or not (perl.h, libperl.la, reasonable basic
+checks - types, etc.)
+
+=cut
+
+sub check_link_perl_api {
+  my $self = shift->_get_instance;
+  my $cache_name = $self->_cache_name(qw(link perl api));
+
+  $self->check_cached( $cache_name,
+    "whether perl api is linkable",
+    sub { $self->_check_link_perl_api } );
+}
+
 =head2 check_lm( [ action-if-found ], [ action-if-not-found ] )
 
 This method is used to check if some common C<math.h> functions are
@@ -2140,7 +2162,7 @@ sub _check_mm_pureperl_build_wanted {
   defined $ENV{PERL_MM_OPT} and my @env_args = split " ", $ENV{PERL_MM_OPT};
 
   foreach my $arg ( @{$self->{_argv}}, @env_args ) {
-    $arg =~ m/^PUREPERL_ONLY=(.*)$/ and return $self->{_force_xs} = 0 + !! $1;
+    $arg =~ m/^PUREPERL_ONLY=(.*)$/ and return int($1);
   }
 
   0;
@@ -2198,6 +2220,57 @@ sub check_pureperl_build_wanted {
     "whether pureperl shall be forced",
     sub { $self->_check_pureperl_build_wanted } );
 }
+
+=head2 check_sane_xs
+
+This routine checks whether XS can be sanely used. Therefore it does
+following checks in given order:
+
+=over 4
+
+=item *
+
+check pureperl environment variables or command line arguments and disable
+XS when pure perl is wanted in any way
+
+=item *
+
+check whether a compiler is available (C<check_cc>) and disable XS if none found
+
+=item *
+
+check whether a test program accessing Perl API can be compiled and
+die with error if not
+
+=item *
+
+when C<ExtensivePerlAPI> is enabled, check wether perl extensions can
+be linked or die with error otherwise
+
+=item *
+
+I<TODO> check whether a trivial XS can be loaded and die hard on error
+
+=back
+
+When all checks passed successfully, return a true value.
+
+=cut
+
+sub check_sane_xs {
+  my $self = shift->_get_instance;
+  my $pp = $self->check_pureperl_build_wanted();
+  $pp and return 0;
+  $self->check_cc or return 0;
+  # XXX necessary check for $Config{useshrlib}?
+  $self->check_compile_perl_api() or return $self->msg_error("Cannot use Perl API - giving up");
+  if( $self->{c_ac_flags}->{ExtensivePerlAPI} ) {
+    $self->check_compile_perl_api() or return $self->msg_error("Cannot link Perl API - giving up");
+    # XXX add a reasonable check compiling and trying to load an XS module
+  }
+  return 1;
+}
+
 
 #
 #
