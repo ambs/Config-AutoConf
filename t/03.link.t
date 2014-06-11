@@ -18,6 +18,8 @@ my ($ac_1, $ac_2);
 ok( $ac_1 = Config::AutoConf->new( logfile => "config3.log" ), "Instantiating Config::AutoConf for check_lib() tests" );
 ok( $ac_2 = Config::AutoConf->new( logfile => "config4.log" ), "Instantiating Config::AutoConf for search_libs() tests" );
 
+ok( $ac_1->check_header("stdio.h") ) or plan skip_all => "No working compile environment";
+
 TODO: {
     local $TODO = "It seems some Windows machine doesn't have -lm" if $^O eq "MSWin32";
 
