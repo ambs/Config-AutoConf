@@ -1,5 +1,9 @@
 Revision history for Config-AutoConf
 
+0.305	2014-06-12
+	- skip compiler based tests when compiler seems weird
+	- add check_sane_xs composition as discussed on cpan-workers@
+
 0.304	2014-06-01
 	- improve dealing with whitespaces in path's of programs
 	- reorder -lperl and $Config{perllibs} - let's see if that covers
