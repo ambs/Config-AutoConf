@@ -127,7 +127,8 @@ my $glob_instance;
 =head2 new
 
 This function instantiates a new instance of Config::AutoConf, eg. to
-configure child components.
+configure child components. The contructor adds also values set via
+environment variable C<PERL5_AUTOCONF_OPTS>.
 
 =cut
 
@@ -138,7 +139,7 @@ sub new {
 
   my %flags = map {
     my ($k, $v) = split("=", $_, 2); defined $v or $v = 1; ($k, $v)
-  } split( ":", $ENV{PERL5CAC_OPTS} ) if($ENV{PERL5CAC_OPTS});
+  } split( ":", $ENV{PERL5_AUTOCONF_OPTS} ) if($ENV{PERL5_AUTOCONF_OPTS});
 
   my %instance = (
     msg_prefix => 'configure: ',
