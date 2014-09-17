@@ -124,7 +124,7 @@ TODO: {
   $ac->add_log_fh($fh);
   cmp_ok(scalar @{$ac->{logfh}}, "==", 2, "Successfully added 2nd loghandle");
 
-  ok( $ac->check_compile_perl_api(), "Could compile perl extensions" ) or diag($dbuf);
+  ok( $ac->check_compile_perlapi(), "Could compile perl extensions" ) or diag($dbuf);
   scalar @old_logfh and $ac->delete_log_fh( $fh );
   scalar @old_logfh and is_deeply(\@old_logfh, $ac->{logfh}, "add_log_fh/delete_log_fh");
   defined $fh and close($fh);

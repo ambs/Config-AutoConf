@@ -42,40 +42,40 @@ SCOPE: {
   local $ENV{PERL_MM_OPT} = "PUREPERL_ONLY=0";
   local $0 = "Makefile.PL";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
-  ok(!$ac->check_pureperl_build_wanted(), "PERL_MM_OPT=\"PUREPERL_ONLY=0\" Makefile.PL");
+  ok(!$ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=0\" Makefile.PL");
 }
 
 SCOPE: {
   local $ENV{PERL_MM_OPT} = "PUREPERL_ONLY=1";
   local $0 = "Makefile.PL";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
-  ok($ac->check_pureperl_build_wanted(), "PERL_MM_OPT=\"PUREPERL_ONLY=1\" Makefile.PL");
+  ok($ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=1\" Makefile.PL");
 }
 
 SCOPE: {
   local $0 = "Makefile.PL";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("PUREPERL_ONLY=0");
-  ok(!$ac->check_pureperl_build_wanted(), "Makefile.PL PUREPERL_ONLY=0");
+  ok(!$ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=0");
 }
 
 SCOPE: {
   local $0 = "Makefile.PL";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("PUREPERL_ONLY=1");
-  ok($ac->check_pureperl_build_wanted(), "Makefile.PL PUREPERL_ONLY=1");
+  ok($ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=1");
 }
 
 SCOPE: {
   local $0 = "Build.PL";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
   $ac->_set_argv("--pureperl-only");
-  ok($ac->check_pureperl_build_wanted(), "Build.PL --pureperl-only");
+  ok($ac->check_pureperl_required(), "Build.PL --pureperl-only");
 }
 
 SCOPE: {
   local $0 = "Build.PL";
   local $ENV{PERL_MB_OPT} = "--pureperl-only";
   my $ac = Config::AutoConf->new(logfile => "config6.log", logfile_mode => ">>");
-  ok($ac->check_pureperl_build_wanted(), "PERL_MB_OPT=\"--pureperl-only\" ");
+  ok($ac->check_pureperl_required(), "PERL_MB_OPT=\"--pureperl-only\" ");
 }

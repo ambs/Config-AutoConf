@@ -144,7 +144,7 @@ sub new
         my ( $k, $v ) = split( "=", $_, 2 );
         defined $v or $v = 1;
         ( $k, $v )
-    } split( ":", $ENV{PERL5_AUTOCONF_OPTS} ) if ( $ENV{PERL5_AUTOCONF_OPTS} );
+    } split( ":", $ENV{PERL5_AC_OPTS} ) if ( $ENV{PERL5_AC_OPTS} );
 
     my %instance = (
         msg_prefix     => 'configure: ',
@@ -509,15 +509,60 @@ sub check_prog_pkg_config
     $self->check_cached( $cache_name, "for pkg-config", sub { $self->check_prog("pkg-config") } );
 }
 
-=head2 check_cc
+=head2 check_prog_cc
 
-This function checks if you have a running C compiler.
+This function checks if you have a runable C compiler.
 
 =cut
 
-sub check_cc
+sub check_prog_cc
 {
     ExtUtils::CBuilder->new( quiet => 1 )->have_compiler;
+}
+
+=head2 check_cc
+
+(Depreciated) Old name of L</check_prog_cc>.
+
+=cut
+
+sub check_cc { shift->check_prog_cc(@_) }
+
+=head2 check_valid_compiler
+
+This function checks for a valid compiler for the currently active language.
+At the very moment only C<C> is understood (corresponding to your compiler
+default options, e.g. -std=gnu89).
+
+=cut
+
+sub check_valid_compiler
+{
+    my $self = shift->_get_instance;
+    my $lang = $self->{lang};
+    $lang eq "C" or $self->msg_error("Language $lang is not supported");
+    $self->check_prog_cc;
+}
+
+=head2 check_valid_compilers(;\@)
+
+Checks for valid compilers for each given language. When unspecified
+defaults to C<[ "C" ]>.
+
+=cut
+
+sub check_valid_compilers
+{
+    my $self = shift;
+    for my $lang (@{$_[0]})
+    {
+	$self->push_lang($lang);
+	my $supp = $self->check_valid_compiler;
+	$self->pop_lang($lang);
+	$supp or return 0;
+    }
+
+    1;
 }
 
 =head2 msg_checking
@@ -727,7 +772,7 @@ sub pop_lang
       and $self->{lang} ne $_[0]
       and croak( "pop_lang( $_[0] ) doesn't match language in use (" . $self->{lang} . ")" );
 
-    $self->_set_language( @{ pop @{ $self->{lang} } } );
+    $self->_set_language( @{ pop @{ $self->{lang_stack} } } );
 }
 
 =head2 lang_call( [prologue], function )
@@ -1081,16 +1126,21 @@ sub link_if_else
     1;
 }
 
-=head2 check_cached( cache-var, message, sub-to-check )
+=head2 check_cached( $cache-key, $check-title, \&check-call, \&on_true_call?, \&on_fail_call? )
 
-This function checks whether a specified cache variable is set or not, and if not
-it's going to set it using specified sub-to-check.
+Retrieves the result of a previous L</check_cached> invocation from
+C<cache-key>, or (when called for the first time) populates the cache
+by invoking C<\&check_call>. 
+
+Takes as optional arguments callback coderefs to be executed depending on the
+result value. A callback will be executed on B<every> call to check_cached
+(not just the first cache-populating invocation).
 
 =cut
 
 sub check_cached
 {
-    my ( $self, $cache_name, $message, $check_sub ) = @_;
+    my ( $self, $cache_name, $message, $check_sub, $ait, $aif ) = @_;
     ref $self or $self = $self->_get_instance();
 
     $self->msg_checking($message);
@@ -1108,6 +1158,9 @@ sub check_cached
         $self->{cache}->{$cache_name} = &{$check_sub}();
         $self->msg_result( $self->{cache}->{$cache_name} );
     }
+
+    defined $ait and $self->{cache}->{$cache_name} and $ait->();
+    defined $aif and ! $self->{cache}->{$cache_name} and $aif->();
 
     $self->{cache}->{$cache_name};
 }
@@ -1999,14 +2052,14 @@ sub _have_lib_define_name
     return $have_name;
 }
 
-=head2 _check_perl_api_program
+=head2 _check_perlapi_program
 
 This method provides the program source which is suitable to do basic
 compile/link tests to prove perl development environment.
 
 =cut
 
-sub _check_perl_api_program
+sub _check_perlapi_program
 {
     my $self = shift;
 
@@ -2019,37 +2072,93 @@ EOB
     $self->lang_build_program( $includes, $perl_check_body );
 }
 
-=head2 _check_compile_perl_api
+=head2 _check_compile_perlapi
 
 This method can be used from other checks to prove whether we have a perl
 development environment or not (perl.h, reasonable basic checks - types, etc.)
 
 =cut
 
-sub _check_compile_perl_api
+sub _check_compile_perlapi
 {
     my $self = shift;
 
-    my $conftest = $self->_check_perl_api_program();
+    my $conftest = $self->_check_perlapi_program();
     $self->compile_if_else($conftest);
 }
 
-=head2 check_compile_perl_api
+=head2 check_compile_perlapi
 
 This method can be used from other checks to prove whether we have a perl
 development environment or not (perl.h, reasonable basic checks - types, etc.)
 
 =cut
 
-sub check_compile_perl_api
+sub check_compile_perlapi
 {
     my $self       = shift->_get_instance;
-    my $cache_name = $self->_cache_name(qw(compile perl api));
+    my $cache_name = $self->_cache_name(qw(compile perlapi));
 
-    $self->check_cached( $cache_name, "whether perl api is accessible", sub { $self->_check_compile_perl_api } );
+    $self->check_cached( $cache_name, "whether perlapi is accessible", sub { $self->_check_compile_perlapi } );
 }
 
-=head2 _check_link_perl_api
+=head2 check_compile_perlapi_or_die
+
+Dies when not being able to compile using the Perl API
+
+=cut
+
+sub check_compile_perlapi_or_die
+{
+    my $self = shift;
+    $self->check_compile_perlapi(@_) or $self->msg_error("Cannot use Perl API - giving up");
+}
+
+=head2 check_linkable_xs_so
+
+Checks whether a dynamic loadable object containing an XS module can be
+linked or not. Due the nature of the beast, this test currently always
+succeed.
+
+=cut
+
+sub check_linkable_xs_so { 1 }
+
+=head2 check_linkable_xs_so_or_die
+
+Dies when L</check_linkable_xs_so> fails.
+
+=cut
+
+sub check_linkable_xs_so_or_die
+{
+    my $self = shift;
+    $self->check_linkable_xs_so(@_) or $self->msg_error("Cannot link XS dynamic loadable - giving up");
+}
+
+=head2 check_loadable_xs_so
+
+Checks whether a dynamic loadable object containing an XS module can be
+loaded or not. Due the nature of the beast, this test currently always
+succeed.
+
+=cut
+
+sub check_loadable_xs_so { 1 }
+
+=head2 check_loadable_xs_so_or_die
+
+Dies when L</check_loadable_xs_so> fails.
+
+=cut
+
+sub check_loadable_xs_so_or_die
+{
+    my $self = shift;
+    $self->check_loadable_xs_so(@_) or $self->msg_error("Cannot load XS dynamic loadable - giving up");
+}
+
+=head2 _check_link_perlapi
 
 This method can be used from other checks to prove whether we have a perl
 development environment including a suitable libperl or not (perl.h,
@@ -2060,11 +2169,11 @@ or similar).
 
 =cut
 
-sub _check_link_perl_api
+sub _check_link_perlapi
 {
     my $self = shift;
 
-    my $conftest              = $self->_check_perl_api_program();
+    my $conftest              = $self->_check_perlapi_program();
     my @save_libs             = @{ $self->{extra_libs} };
     my @save_extra_link_flags = @{ $self->{extra_link_flags} };
 
@@ -2087,7 +2196,7 @@ sub _check_link_perl_api
     $have_libperl;
 }
 
-=head2 check_link_perl_api
+=head2 check_link_perlapi
 
 This method can be used from other checks to prove whether we have a perl
 development environment or not (perl.h, libperl.la, reasonable basic
@@ -2095,12 +2204,12 @@ checks - types, etc.)
 
 =cut
 
-sub check_link_perl_api
+sub check_link_perlapi
 {
     my $self       = shift->_get_instance;
-    my $cache_name = $self->_cache_name(qw(link perl api));
+    my $cache_name = $self->_cache_name(qw(link perlapi));
 
-    $self->check_cached( $cache_name, "whether perl api is linkable", sub { $self->_check_link_perl_api } );
+    $self->check_cached( $cache_name, "whether perlapi is linkable", sub { $self->_check_link_perlapi } );
 }
 
 =head2 check_lm( [ action-if-found ], [ action-if-not-found ] )
@@ -2398,7 +2507,7 @@ sub _check_mb_pureperl_build_wanted
     0;
 }
 
-=head2 _check_pureperl_build_wanted
+=head2 _check_pureperl_required
 
 This method calls C<_check_mm_pureperl_build_wanted> when running under
 L<ExtUtils::MakeMaker> (C<Makefile.PL>) or C<_check_mb_pureperl_build_wanted>
@@ -2409,7 +2518,7 @@ simply 0 is returned.
 
 =cut
 
-sub _check_pureperl_build_wanted
+sub _check_pureperl_required
 {
     $0 =~ m/Makefile\.PL$/i and goto \&_check_mm_pureperl_build_wanted;
     $0 =~ m/Build\.PL$/i    and goto \&_check_mb_pureperl_build_wanted;
@@ -2417,50 +2526,41 @@ sub _check_pureperl_build_wanted
     0;
 }
 
-=head2 check_pureperl_build_wanted
+=head2 check_pureperl_required
 
 This check method proves whether a pureperl build is wanted or not by
-cached-checking C<< $self->_check_pureperl_build_wanted >>. The result
-might lead to further checks, eg. L</_check_compile_perl_api>.
+cached-checking C<< $self->_check_pureperl_required >>.
 
 =cut
 
-sub check_pureperl_build_wanted
+sub check_pureperl_required
 {
     my $self       = shift->_get_instance;
-    my $cache_name = $self->_cache_name(qw(pureperl only wanted));
-    $self->check_cached( $cache_name, "whether pureperl shall be forced", sub { $self->_check_pureperl_build_wanted } );
+    my $cache_name = $self->_cache_name(qw(pureperl required));
+    $self->check_cached( $cache_name, "whether pureperl is required", sub { $self->_check_pureperl_required } );
 }
 
-=head2 check_sane_xs
+=head2 check_produce_xs_build
 
-This routine checks whether XS can be sanely used. Therefore it does
+This routine checks whether XS can be produced. Therefore it does
 following checks in given order:
 
 =over 4
 
 =item *
 
-check pureperl environment variables or command line arguments and disable
-XS when pure perl is wanted in any way
+check pureperl environment variables (L</check_pureperl_required>) or
+command line arguments and return false when pure perl is requested
 
 =item *
 
-check whether a compiler is available (C<check_cc>) and disable XS if none found
+check whether a compiler is available (L</check_valid_compilers>) and
+return false if none found
 
 =item *
 
 check whether a test program accessing Perl API can be compiled and
 die with error if not
-
-=item *
-
-when C<ExtensivePerlAPI> is enabled, check wether perl extensions can
-be linked or die with error otherwise
-
-=item *
-
-I<TODO> check whether a trivial XS can be loaded and die hard on error
 
 =back
 
@@ -2468,20 +2568,33 @@ When all checks passed successfully, return a true value.
 
 =cut
 
-sub check_sane_xs
+sub check_produce_xs_build
 {
     my $self = shift->_get_instance;
-    my $pp   = $self->check_pureperl_build_wanted();
-    $pp and return 0;
-    $self->check_cc or return 0;
-    # XXX necessary check for $Config{useshrlib}?
-    $self->check_compile_perl_api() or return $self->msg_error("Cannot use Perl API - giving up");
-    if ( $self->{c_ac_flags}->{ExtensivePerlAPI} )
-    {
-        $self->check_compile_perl_api() or return $self->msg_error("Cannot link Perl API - giving up");
-        # XXX add a reasonable check compiling and trying to load an XS module
-    }
+    $self->check_pureperl_required() and return 0;
+    $self->check_valid_compilers( $_[0] || [qw(C)] ) or return 0;
+    # XXX necessary check for $Config{useshrlib}? (need to dicuss with eg. TuX, 99% likely return 0)
+    $self->check_compile_perlapi_or_die();
     return 1;
+}
+
+=head2 check_produce_loadable_xs_build
+
+This routine proves whether XS should be built and it's possible to create
+a dynamic linked object which can be loaded using Perl's Dynaloader.
+
+The extension over L</check_produce_xs_build> can be avoided by adding the
+C<notest_loadable_xs> to C<$ENV{PERL5_AC_OPTS}>.
+
+=cut
+
+sub check_produce_loadable_xs_build
+{
+    my $self = shift->_get_instance;
+          $self->check_produce_xs_build(@_)
+      and ! $self->{c_ac_flags}->{notest_loadable_xs}
+      and $self->check_linkable_xs_so_or_die
+      and $self->check_loadable_xs_so_or_die;
 }
 
 #
