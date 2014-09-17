@@ -6,7 +6,7 @@
 \.old$
 \.tdy$
 \.tmp$
-\..*swp
+\..*sw?
 ^Makefile$
 ^Build$
 ^Build\.bat$
