@@ -554,12 +554,12 @@ defaults to C<[ "C" ]>.
 sub check_valid_compilers
 {
     my $self = shift;
-    for my $lang (@{$_[0]})
+    for my $lang ( @{ $_[0] } )
     {
-	$self->push_lang($lang);
-	my $supp = $self->check_valid_compiler;
-	$self->pop_lang($lang);
-	$supp or return 0;
+        $self->push_lang($lang);
+        my $supp = $self->check_valid_compiler;
+        $self->pop_lang($lang);
+        $supp or return 0;
     }
 
     1;
@@ -1159,8 +1159,8 @@ sub check_cached
         $self->msg_result( $self->{cache}->{$cache_name} );
     }
 
-    defined $ait and $self->{cache}->{$cache_name} and $ait->();
-    defined $aif and ! $self->{cache}->{$cache_name} and $aif->();
+    defined $ait and $self->{cache}->{$cache_name}  and $ait->();
+    defined $aif and !$self->{cache}->{$cache_name} and $aif->();
 
     $self->{cache}->{$cache_name};
 }
@@ -1284,6 +1284,124 @@ sub check_decls
     }
 
     $have_syms;
+}
+
+=head2 check_func( $function, $action-if-true?, $action-if-false? )
+
+Check whether it's possible to link a program that uses a particular
+function. This is written like a Config::AutoConf method and should ideally
+be incorporated into that module. This macro caches its result in the
+ac_cv_func_FUNCTION variable.
+
+=over 4
+
+=item $function
+
+The function to check for
+
+=item $action-if-true
+
+Code reference to call if the function was found
+
+=item $action-if-false
+
+Code reference to call if the function wasn't found
+
+=back
+
+Returns: True if the function was found, false otherwise
+
+=cut
+
+sub check_func
+{
+    my ( $self, $function, $found_ref, $notfound_ref ) = @_;
+    $self = $self->_get_instance();
+
+    # Build the name of the cache variable.
+    my $cache_name = $self->_cache_name( 'func', $function );
+    # Wrap the actual check in a closure so that we can use check_cached.
+    my $check_sub = sub {
+        my $have_func = $self->link_if_else( $self->lang_call( q{}, $function ) );
+        if ($have_func)
+        {
+            if ( defined($found_ref) && ref($found_ref) eq 'CODE' ) { $found_ref->(); }
+        }
+        else
+        {
+            if ( defined($notfound_ref) && ref($notfound_ref) eq 'CODE' ) { $notfound_ref->(); }
+        }
+        return $have_func;
+    };
+
+    # Run the check and cache the results.
+    return $self->check_cached( $cache_name, "for $function", $check_sub );
+}
+
+=head2 check_funcs( \@functions-list, $action-if-true?, $action-if-false? )
+
+The same as check_func, but takes a list of functions to look for and checks
+for each in turn. Define HAVE_FUNCTION for each function that was found,
+and also run the C<$action-if-true> code each time a function was found.
+Run the C<$action-if-false> code each time a function wasn't found. Both
+code references are passed the name of the function that was found.
+
+=over 4
+
+=item \@functions-list
+
+Reference to an array of functions to check for
+
+=item $action-if-true
+
+Code reference to call if the function was found
+
+=item $action-if-false
+
+Code reference to call if the function wasn't found
+
+=back
+
+
+Returns: True if all functions were found, false otherwise.
+
+=cut
+
+sub check_funcs
+{
+    my ( $self, $functions_ref, $user_found_ref, $user_notfound_ref ) = @_;
+    $self = $self->_get_instance();
+
+    # Build the code reference to run when a function was found. This defines
+    # a HAVE_FUNCTION symbol, plus runs the current $action-if-true if there is
+    # one.
+    my $func_found_ref = sub {
+        my ($function) = @_;                            # Generate the name of the symbol we'll define.
+        my $have_func_name = 'HAVE_' . uc($function);
+        $have_func_name =~ tr/_A-Za-z0-9/_/c;           # Define the symbol.
+        $self->define_var( $have_func_name, 1, "Defined when $function is available" );
+
+        # Run the user-provided hook, if there is one.
+        if ( defined($user_found_ref) && ref($user_found_ref) eq 'CODE' )
+        {
+            $user_found_ref->($function);
+        }
+    };
+    # Go through the list of functions and call check_func for each one. We
+    # generate new closures for the found and not-found functions that pass in
+    # the relevant function name.
+    my $return = 1;
+    for my $function ( @{$functions_ref} )
+    {
+        my $found_ref = sub { $func_found_ref->($function) };
+        my $notfound_ref;
+        if ( defined($user_notfound_ref) )
+        {
+            $notfound_ref = sub { $user_notfound_ref->($function) };
+        }
+        $return &= check_func( $self, $function, $found_ref, $notfound_ref );
+    }
+    return $return;
 }
 
 sub _have_type_define_name
@@ -2591,8 +2709,8 @@ C<notest_loadable_xs> to C<$ENV{PERL5_AC_OPTS}>.
 sub check_produce_loadable_xs_build
 {
     my $self = shift->_get_instance;
-          $self->check_produce_xs_build(@_)
-      and ! $self->{c_ac_flags}->{notest_loadable_xs}
+    $self->check_produce_xs_build(@_)
+      and !$self->{c_ac_flags}->{notest_loadable_xs}
       and $self->check_linkable_xs_so_or_die
       and $self->check_loadable_xs_so_or_die;
 }
