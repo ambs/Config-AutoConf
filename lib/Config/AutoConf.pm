@@ -212,13 +212,16 @@ sub _sanitize_prog
 
 my @exe_exts = ( $^O eq "MSWin32" ? qw(.exe .com .bat .cmd) : ("") );
 
-=head2 check_prog(prog,[dirlist])
+=head2 check_prog( $prog, \@dirlist?, \%options? )
 
 This function checks for a program with the supplied name. In success
 returns the full path for the executable;
 
 An optional array reference containing a list of directories to be searched
 instead of $PATH is gracefully honored.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
 
 =cut
 
@@ -227,6 +230,10 @@ sub check_prog
     my $self = shift;
     # sanitize ac_prog
     my $ac_prog = _sanitize( shift @_ );
+
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+
     my @dirlist;
     @_ and scalar @_ > 1 and @dirlist = @_;
     @_ and scalar @_ == 1 and ref $_[0] eq "ARRAY" and @dirlist = @{ $_[0] };
@@ -237,9 +244,18 @@ sub check_prog
         for my $e (@exe_exts)
         {
             my $cmd = $self->_sanitize_prog( File::Spec->catfile( $p, $ac_prog . $e ) );
-            return $cmd if -x $cmd;
+            -x $cmd
+              and $options->{action_on_true}
+              and ref $options->{action_on_true} eq "CODE"
+              and $options->{action_on_true}->();
+            -x $cmd and return $cmd;
         }
     }
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and $options->{action_on_false}->();
+
     return;
 }
 
@@ -251,22 +267,42 @@ the first found on the system. Returns undef if none was found.
 An optional array reference containing a list of directories to be searched
 instead of $PATH is gracefully honored.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively. The
+name of the I<$prog> to check and the found full path are passed as first
+and second argument to the I<action_on_true> callback.
+
 =cut
 
 sub check_progs
 {
     my $self = shift;
+
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+
     my @dirlist;
     scalar @_ > 1 and ref $_[-1] eq "ARRAY" and @dirlist = @{ pop @_ };
     @dirlist or @dirlist = split( /$Config{path_sep}/, $ENV{PATH} );
 
     my @progs = @_;
-    for (@progs)
+    foreach my $prog (@progs)
     {
-        defined $_ or next;
-        my $ans = $self->check_prog( $_, \@dirlist );
-        return $ans if $ans;
+        defined $prog or next;
+
+        my $ans = $self->check_prog( $prog, \@dirlist );
+              $ans
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_if_true}->( $prog, $ans );
+
+        $ans and return $ans;
     }
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and $options->{action_on_false}->();
+
     return;
 }
 
@@ -986,19 +1022,24 @@ sub push_link_flags
     return;
 }
 
-=head2 compile_if_else( $src [, action-if-true [, action-if-false ] ] )
+=head2 compile_if_else( $src, \%options? )
 
-This function trys to compile specified code and runs action-if-true on success
-or action-if-false otherwise.
+This function trys to compile specified code and returns a boolean value
+containing check success state.
 
-Returns a boolean value containing check success state.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
 
 =cut
 
 sub compile_if_else
 {
-    my ( $self, $src, $action_if_true, $action_if_false ) = @_;
+    my ( $self, $src ) = @_;
     ref $self or $self = $self->_get_instance();
+
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
     my $builder = $self->_get_builder();
 
     my ( $fh, $filename ) = tempfile(
@@ -1036,27 +1077,37 @@ sub compile_if_else
         $outbuf
           and $self->_add_log_lines( "stdout was :\n" . $outbuf );
 
-        defined($action_if_false) and "CODE" eq ref($action_if_false) and &{$action_if_false}();
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and $options->{action_on_false}->();
+
         return 0;
     }
 
-    defined($action_if_true) and "CODE" eq ref($action_if_true) and &{$action_if_true}();
+    $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
     1;
 }
 
-=head2 link_if_else( $src [, action-if-true [, action-if-false ] ] )
+=head2 link_if_else( $src, \%options? )
 
-This function trys to compile and link specified code and runs action-if-true on success
-or action-if-false otherwise.
+This function trys to compile and link specified code and returns a boolean
+value containing check success state.
 
-Returns a boolean value containing check success state.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
 
 =cut
 
 sub link_if_else
 {
-    my ( $self, $src, $action_if_true, $action_if_false ) = @_;
+    my ( $self, $src ) = @_;
     ref $self or $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
     my $builder = $self->_get_builder();
 
     my ( $fh, $filename ) = tempfile( "testXXXXXX", SUFFIX => '.c' );
@@ -1089,7 +1140,11 @@ sub link_if_else
 
         unlink $filename;
         unlink $obj_file if $obj_file;
-        defined($action_if_false) and "CODE" eq ref($action_if_false) and &{$action_if_false}();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and $options->{action_on_false}->();
+
         return 0;
     }
 
@@ -1118,30 +1173,38 @@ sub link_if_else
         $outbuf
           and $self->_add_log_lines( "stdout was :\n" . $outbuf );
 
-        defined($action_if_false) and "CODE" eq ref($action_if_false) and &{$action_if_false}();
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and $options->{action_on_false}->();
+
         return 0;
     }
 
-    defined($action_if_true) and "CODE" eq ref($action_if_true) and &{$action_if_true}();
+    $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
     1;
 }
 
-=head2 check_cached( $cache-key, $check-title, \&check-call, \&on_true_call?, \&on_fail_call? )
+=head2 check_cached( $cache-key, $check-title, \&check-call, \%options? )
 
 Retrieves the result of a previous L</check_cached> invocation from
 C<cache-key>, or (when called for the first time) populates the cache
 by invoking C<\&check_call>. 
 
-Takes as optional arguments callback coderefs to be executed depending on the
-result value. A callback will be executed on B<every> call to check_cached
-(not just the first cache-populating invocation).
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed on B<every> call
+to check_cached (not just the first cache-populating invocation), respectively.
 
 =cut
 
 sub check_cached
 {
-    my ( $self, $cache_name, $message, $check_sub, $ait, $aif ) = @_;
+    my ( $self, $cache_name, $message, $check_sub ) = @_;
     ref $self or $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 4 and ref $_[-1] eq "HASH" and $options = pop @_;
 
     $self->msg_checking($message);
 
@@ -1149,18 +1212,21 @@ sub check_cached
       and not defined $self->{cache}->{$cache_name}
       and $self->{cache}->{$cache_name} = $ENV{$cache_name};
 
-    if ( defined( $self->{cache}->{$cache_name} ) )
-    {
-        $self->msg_result( "(cached)", $self->{cache}->{$cache_name} );
-    }
-    else
-    {
-        $self->{cache}->{$cache_name} = &{$check_sub}();
-        $self->msg_result( $self->{cache}->{$cache_name} );
-    }
+    my @cached_result;
+    defined( $self->{cache}->{$cache_name} ) and push @cached_result, "(cached)";
+    defined( $self->{cache}->{$cache_name} ) or $self->{cache}->{$cache_name} = $check_sub->();
 
-    defined $ait and $self->{cache}->{$cache_name}  and $ait->();
-    defined $aif and !$self->{cache}->{$cache_name} and $aif->();
+    $self->msg_result( @cached_result, $self->{cache}->{$cache_name} );
+
+    $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $self->{cache}->{$cache_name}
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$self->{cache}->{$cache_name}
+      and $options->{action_on_false}->();
 
     $self->{cache}->{$cache_name};
 }
@@ -1179,13 +1245,7 @@ sub cache_val
     $self->{cache}->{$cache_name};
 }
 
-=head2 check_decl( symbol, [action-if-found], [action-if-not-found], [prologue = default includes] )
-
-If symbol (a function, variable or constant) is not declared in includes and
-a declaration is needed, run the code ref given in I<action-if-not-found>,
-otherwise I<action-if-found>. includes is a series of include directives,
-defaulting to I<default includes>, which are used prior to the declaration
-under test.
+=head2 check_decl( $symbol, \%options? )
 
 This method actually tests whether symbol is defined as a macro or can be
 used as an r-value, not whether it is really declared, because it is much
@@ -1194,18 +1254,30 @@ In order to facilitate use of C++ and overloaded function declarations, it
 is possible to specify function argument types in parentheses for types
 which can be zero-initialized:
 
-          Config::AutoConf->check_decl("basename(char *)")
+  Config::AutoConf->check_decl("basename(char *)")
 
-This method caches its result in the C<ac_cv_decl_E<lt>set langE<gt>>_symbol variable.
+This method caches its result in the C<ac_cv_decl_E<lt>set langE<gt>>_symbol
+variable.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
 
 =cut
 
 sub check_decl
 {
-    my ( $self, $symbol, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my ( $self, $symbol ) = @_;
     $self = $self->_get_instance();
-    defined($symbol)   or return;    # XXX prefer croak
-    ref($symbol) eq "" or return;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
+    defined($symbol)   or return croak("No symbol to check for");
+    ref($symbol) eq "" or return croak("No symbol to check for");
     ( my $sym_plain = $symbol ) =~ s/ *\(.*//;
     my $sym_call = $symbol;
     $sym_call =~ s/\(/((/;
@@ -1220,94 +1292,117 @@ sub check_decl
   (void) $sym_call;
 #endif
 ACEOF
-        my $conftest = $self->lang_build_program( $prologue, $body );
+        my $conftest = $self->lang_build_program( $options->{prologue}, $body );
 
-        my $have_decl = $self->compile_if_else($conftest);
-        if ($have_decl)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
+        my $have_decl = $self->compile_if_else(
+            $conftest,
             {
-                &{$action_if_found}();
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
             }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
+        );
 
         $have_decl;
     };
 
-    $self->check_cached( $cache_name, "whether $symbol is declared", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "whether $symbol is declared",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
-=head2 check_decls( symbols, [action-if-found], [action-if-not-found], [prologue = default includes] )
+=head2 check_decls( symbols, \%options? )
 
 For each of the symbols (with optional function argument types for C++
-overloads), run L<check_decl>. If I<action-if-not-found> is given, it
-is additional code to execute when one of the symbol declarations is
-needed, otherwise I<action-if-found> is executed.
+overloads), run L<check_decl>.
 
 Contrary to GNU autoconf, this method does not declare HAVE_DECL_symbol
 macros for the resulting C<confdefs.h>, because it differs as C<check_decl>
 between compiling languages.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+Given callbacks for I<action_on_symbol_true> or I<action_on_symbol_false> are
+called for each symbol checked using L</check_decl> receiving the symbol as
+first argument.
+
 =cut
 
 sub check_decls
 {
-    my ( $self, $symbols, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my ( $self, $symbols ) = @_;
     $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
     my $have_syms = 1;
     foreach my $symbol (@$symbols)
     {
-        $have_syms &= $self->check_decl( $symbol, undef, undef, $prologue );
+        $have_syms &= $self->check_decl(
+            $symbol,
+            {
+                %pass_options,
+                (
+                    $options->{action_on_symbol_true} && "CODE" eq ref $options->{action_on_symbol_true}
+                    ? ( action_on_true => sub { $options->{action_on_symbol_true}->($symbol) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_symbol_false} && "CODE" eq ref $options->{action_on_symbol_false}
+                    ? ( action_on_false => sub { $options->{action_on_symbol_false}->($symbol) } )
+                    : ()
+                ),
+            }
+        );
     }
 
-    if ($have_syms)
-    {
-        if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-        {
-            &{$action_if_found}();
-        }
-    }
-    else
-    {
-        if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-        {
-            &{$action_if_not_found}();
-        }
-    }
+          $have_syms
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_syms
+      and $options->{action_on_false}->();
 
     $have_syms;
 }
 
-=head2 check_func( $function, $action-if-true?, $action-if-false? )
+sub _have_func_define_name
+{
+    my $func      = $_[0];
+    my $have_name = "HAVE_" . uc($func);
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    $have_name;
+}
 
-Check whether it's possible to link a program that uses a particular
-function. This is written like a Config::AutoConf method and should ideally
-be incorporated into that module. This macro caches its result in the
+=head2 check_func( $function, \%options? )
+
+This method actually tests whether I<$funcion> can be linked into a program
+trying to call I<$function>.  This method caches its result in the
 ac_cv_func_FUNCTION variable.
 
-=over 4
-
-=item $function
-
-The function to check for
-
-=item $action-if-true
-
-Code reference to call if the function was found
-
-=item $action-if-false
-
-Code reference to call if the function wasn't found
-
-=back
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to C<check_cached>, respectively.
 
 Returns: True if the function was found, false otherwise
 
@@ -1315,93 +1410,104 @@ Returns: True if the function was found, false otherwise
 
 sub check_func
 {
-    my ( $self, $function, $found_ref, $notfound_ref ) = @_;
+    my ( $self, $function ) = @_;
     $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
 
     # Build the name of the cache variable.
     my $cache_name = $self->_cache_name( 'func', $function );
     # Wrap the actual check in a closure so that we can use check_cached.
     my $check_sub = sub {
-        my $have_func = $self->link_if_else( $self->lang_call( q{}, $function ) );
-        if ($have_func)
-        {
-            if ( defined($found_ref) && ref($found_ref) eq 'CODE' ) { $found_ref->(); }
-        }
-        else
-        {
-            if ( defined($notfound_ref) && ref($notfound_ref) eq 'CODE' ) { $notfound_ref->(); }
-        }
-        return $have_func;
+        my $have_func = $self->link_if_else(
+            $self->lang_call( q{}, $function ),
+            {
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
+        $have_func;
     };
 
     # Run the check and cache the results.
-    return $self->check_cached( $cache_name, "for $function", $check_sub );
+    return $self->check_cached(
+        $cache_name,
+        "for $function",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
 =head2 check_funcs( \@functions-list, $action-if-true?, $action-if-false? )
 
-The same as check_func, but takes a list of functions to look for and checks
-for each in turn. Define HAVE_FUNCTION for each function that was found,
-and also run the C<$action-if-true> code each time a function was found.
-Run the C<$action-if-false> code each time a function wasn't found. Both
-code references are passed the name of the function that was found.
+The same as check_func, but takes a list of functions in I<\@functions-list>
+to look for and checks for each in turn. Define HAVE_FUNCTION for each
+function that was found.
 
-=over 4
-
-=item \@functions-list
-
-Reference to an array of functions to check for
-
-=item $action-if-true
-
-Code reference to call if the function was found
-
-=item $action-if-false
-
-Code reference to call if the function wasn't found
-
-=back
-
-
-Returns: True if all functions were found, false otherwise.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to C<check_cached>, respectively.  Given callbacks
+for I<action_on_function_true> or I<action_on_function_false> are called for
+each symbol checked using L</check_func> receiving the symbol as first
+argument.
 
 =cut
 
 sub check_funcs
 {
-    my ( $self, $functions_ref, $user_found_ref, $user_notfound_ref ) = @_;
+    my ( $self, $functions_ref ) = @_;
     $self = $self->_get_instance();
 
-    # Build the code reference to run when a function was found. This defines
-    # a HAVE_FUNCTION symbol, plus runs the current $action-if-true if there is
-    # one.
-    my $func_found_ref = sub {
-        my ($function) = @_;                            # Generate the name of the symbol we'll define.
-        my $have_func_name = 'HAVE_' . uc($function);
-        $have_func_name =~ tr/_A-Za-z0-9/_/c;           # Define the symbol.
-        $self->define_var( $have_func_name, 1, "Defined when $function is available" );
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
 
-        # Run the user-provided hook, if there is one.
-        if ( defined($user_found_ref) && ref($user_found_ref) eq 'CODE' )
-        {
-            $user_found_ref->($function);
-        }
-    };
+    my %pass_options;
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
+
     # Go through the list of functions and call check_func for each one. We
     # generate new closures for the found and not-found functions that pass in
     # the relevant function name.
-    my $return = 1;
+    my $have_funcs = 1;
     for my $function ( @{$functions_ref} )
     {
-        my $found_ref = sub { $func_found_ref->($function) };
-        my $notfound_ref;
-        if ( defined($user_notfound_ref) )
-        {
-            $notfound_ref = sub { $user_notfound_ref->($function) };
-        }
-        $return &= check_func( $self, $function, $found_ref, $notfound_ref );
+
+        # Build the code reference to run when a function was found. This defines
+        # a HAVE_FUNCTION symbol, plus runs the current $action-if-true if there is
+        # one.
+        $pass_options{action_on_true} = sub {
+            # XXX think about doing this always (move to check_func)
+            $self->define_var( _have_func_define_name($function), 1, "Defined when $function is available" );
+
+            # Run the user-provided hook, if there is one.
+            defined $options->{action_on_function_true}
+              and ref $options->{action_on_function_true} eq "CODE"
+              and $options->{action_on_function_true}->($function);
+        };
+
+        defined $options->{action_on_function_false}
+          and ref $options->{action_on_function_false} eq "CODE"
+          and $pass_options{action_on_false} = sub { $options->{action_on_function_false}->($function); };
+
+        $have_funcs &= check_func( $self, $function, \%pass_options );
     }
-    return $return;
+
+          $have_funcs
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_funcs
+      and $options->{action_on_false}->();
+
+    return $have_funcs;
 }
 
 sub _have_type_define_name
@@ -1413,15 +1519,11 @@ sub _have_type_define_name
     $have_name;
 }
 
-=head2 check_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_type( $symbol, \%options? )
 
 Check whether type is defined. It may be a compiler builtin type or defined
-by the includes. I<prologue> should be a series of include directives,
-defaulting to I<default includes>, which are used prior to the type under
-test.
-
-In C, type must be a type-name, so that the expression C<sizeof (type)> is
-valid (but C<sizeof ((type))> is not)
+by the includes.  In C, type must be a type-name, so that the expression
+C<sizeof (type)> is valid (but C<sizeof ((type))> is not).
 
 If I<type> type is defined, preprocessor macro HAVE_I<type> (in all
 capitals, with "*" replaced by "P" and spaces and dots replaced by
@@ -1429,14 +1531,25 @@ underscores) is defined.
 
 This method caches its result in the C<ac_cv_type_>type variable.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+
 =cut
 
 sub check_type
 {
-    my ( $self, $type, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my ( $self, $type ) = @_;
     $self = $self->_get_instance();
-    defined $type   or return;    # XXX prefer croak
-    ref $type eq "" or return;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
+    defined($type)   or return croak("No type to check for");
+    ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name( "type", $type );
     my $check_sub = sub {
@@ -1445,66 +1558,90 @@ sub check_type
   if( sizeof ($type) )
     return 0;
 ACEOF
-        my $conftest = $self->lang_build_program( $prologue, $body );
+        my $conftest = $self->lang_build_program( $options->{prologue}, $body );
 
-        my $have_type = $self->compile_if_else($conftest);
+        my $have_type = $self->compile_if_else(
+            $conftest,
+            {
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
         $self->define_var( _have_type_define_name($type), $have_type ? $have_type : undef, "defined when $type is available" );
-        if ($have_type)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
-
         $have_type;
     };
 
-    $self->check_cached( $cache_name, "for $type", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for $type",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
-=head2 check_types (types, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_types( \@type-list, \%options? )
 
-For each type L<check_type> is called to check for type.
+For each type in I<@type-list>, call L<check_type> is called to check
+for type and return the accumulated result (accumulation op is binary and).
 
-If I<action-if-found> is given, it is additionally executed when all of the
-types are found. If I<action-if-not-found> is given, it is executed when one
-of the types is not found.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+Given callbacks for I<action_on_type_true> or I<action_on_type_false> are
+called for each symbol checked using L</check_type> receiving the symbol as
+first argument.
 
 =cut
 
 sub check_types
 {
-    my ( $self, $types, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my ( $self, $types ) = @_;
     $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
     my $have_types = 1;
     foreach my $type (@$types)
     {
-        $have_types &= $self->check_type( $type, undef, undef, $prologue );
+        $have_types &= $self->check_type(
+            $type,
+            {
+                %pass_options,
+                (
+                    $options->{action_on_type_true} && "CODE" eq ref $options->{action_on_type_true}
+                    ? ( action_on_true => sub { $options->{action_on_type_true}->($type) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_type_false} && "CODE" eq ref $options->{action_on_type_false}
+                    ? ( action_on_false => sub { $options->{action_on_type_false}->($type) } )
+                    : ()
+                ),
+            }
+        );
     }
 
-    if ($have_types)
-    {
-        if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-        {
-            &{$action_if_found}();
-        }
-    }
-    else
-    {
-        if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-        {
-            &{$action_if_not_found}();
-        }
-    }
+          $have_types
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_types
+      and $options->{action_on_false}->();
 
     $have_types;
 }
@@ -1579,38 +1716,56 @@ sub _compute_int_compile
     return;
 }
 
-=head2 compute_int (expression, [action-if-fails], [prologue = default includes], [@decls])
+=head2 compute_int( $expression, @decls?, \%options )
 
 Returns the value of the integer I<expression>. The value should fit in an
 initializer in a C variable of type signed long.  It should be possible
 to evaluate the expression at compile-time. If no includes are specified,
 the default includes are used.
 
-Execute I<action-if-fails> if the value cannot be determined correctly.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
 
 =cut
 
 sub compute_int
 {
-    my ( $self, $expr, $action_if_fails, $prologue, @decls ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $expr, @decls ) = @_;
     $self = $self->_get_instance();
 
     my $cache_name = $self->_cache_type_name( "compute_int", $self->{lang}, $expr );
     my $check_sub = sub {
+        my $val = $self->_compute_int_compile( $expr, $options->{prologue}, @decls );
 
-        my $val = $self->_compute_int_compile( $expr, $prologue, @decls );
-        unless ( defined($val) )
-        {
-            if ( defined($action_if_fails) and "CODE" eq ref($action_if_fails) )
-            {
-                &{$action_if_fails}();
-            }
-        }
+        defined $val
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !defined $val
+          and $options->{action_on_false}->();
 
         $val;
     };
 
-    $self->check_cached( $cache_name, "for compute result of ($expr)", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for compute result of ($expr)",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
 sub _sizeof_type_define_name
@@ -1622,34 +1777,41 @@ sub _sizeof_type_define_name
     $have_name;
 }
 
-=head2 check_sizeof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_sizeof_type( $type, \%options? )
 
-Checks for the size of the specified type by compiling. If no size can
-determined, I<action-if-not-found> is invoked when given. Otherwise
-I<action-if-found> is invoked and C<SIZEOF_type> is defined using the
-determined size.
+Checks for the size of the specified type by compiling and define
+C<SIZEOF_type> using the determined size.
 
 In opposition to GNU AutoConf, this method can determine size of structure
 members, eg.
 
-  $ac->check_sizeof_type( "SV.sv_refcnt", undef, undef, $include_perl );
+  $ac->check_sizeof_type( "SV.sv_refcnt", { prologue => $include_perl } );
   # or
-  $ac->check_sizeof_type( "struct utmpx.ut_id", undef, undef, "#include <utmpx.h>" );
+  $ac->check_sizeof_type( "struct utmpx.ut_id", { prologue => "#include <utmpx.h>" } );
 
 This method caches its result in the C<ac_cv_sizeof_E<lt>set langE<gt>>_type variable.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
 
 =cut
 
 sub check_sizeof_type
 {
-    my ( $self, $type, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $type ) = @_;
     $self = $self->_get_instance();
-    defined($type)   or return;    # XXX prefer croak
-    ref($type) eq "" or return;
+    defined($type)   or return croak("No type to check for");
+    ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name( "sizeof", $self->{lang}, $type );
     my $check_sub = sub {
-
         my @decls;
         if ( $type =~ m/^([^.]+)\.([^.]+)$/ )
         {
@@ -1659,34 +1821,38 @@ sub check_sizeof_type
             push( @decls, $decl );
         }
 
-        my $typesize = $self->_compute_int_compile( "sizeof($type)", $prologue, @decls );
+        my $typesize = $self->_compute_int_compile( "sizeof($type)", $options->{prologue}, @decls );
         $self->define_var(
             _sizeof_type_define_name($type),
             $typesize ? $typesize : undef,
             "defined when sizeof($type) is available"
         );
-        if ($typesize)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
+
+              $typesize
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !$typesize
+          and $options->{action_on_false}->();
 
         $typesize;
     };
 
-    $self->check_cached( $cache_name, "for size of $type", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for size of $type",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
-=head2 check_sizeof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_sizeof_types( type, \%options? )
 
 For each type L<check_sizeof_type> is called to check for size of type.
 
@@ -1694,33 +1860,63 @@ If I<action-if-found> is given, it is additionally executed when all of the
 sizes of the types could determined. If I<action-if-not-found> is given, it
 is executed when one size of the types could not determined.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+Given callbacks for I<action_on_size_true> or I<action_on_size_false> are
+called for each symbol checked using L</check_sizeof_type> receiving the
+symbol as first argument.
+
 =cut
 
 sub check_sizeof_types
 {
-    my ( $self, $types, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $types ) = @_;
     $self = $self->_get_instance();
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
     my $have_sizes = 1;
     foreach my $type (@$types)
     {
-        $have_sizes &= !!( $self->check_sizeof_type( $type, undef, undef, $prologue ) );
+        $have_sizes &= !!(
+            $self->check_sizeof_type(
+                $type,
+                {
+                    %pass_options,
+                    (
+                        $options->{action_on_size_true} && "CODE" eq ref $options->{action_on_size_true}
+                        ? ( action_on_true => sub { $options->{action_on_size_true}->($type) } )
+                        : ()
+                    ),
+                    (
+                        $options->{action_on_size_false} && "CODE" eq ref $options->{action_on_size_false}
+                        ? ( action_on_false => sub { $options->{action_on_size_false}->($type) } )
+                        : ()
+                    ),
+                }
+            )
+        );
     }
 
-    if ($have_sizes)
-    {
-        if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-        {
-            &{$action_if_found}();
-        }
-    }
-    else
-    {
-        if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-        {
-            &{$action_if_not_found}();
-        }
-    }
+          $have_sizes
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_sizes
+      and $options->{action_on_false}->();
 
     $have_sizes;
 }
@@ -1734,9 +1930,9 @@ sub _alignof_type_define_name
     $have_name;
 }
 
-=head2 check_alignof_type (type, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_alignof_type( type, \%options? )
 
-Define ALIGNOF_type to be the alignment in bytes of type. I<type y;> must
+Define ALIGNOF_type to be the alignment in bytes of type. I<type> must
 be valid as a structure member declaration or I<type> must be a structure
 member itself.
 
@@ -1744,18 +1940,27 @@ This method caches its result in the C<ac_cv_alignof_E<lt>set langE<gt>>_type
 variable, with I<*> mapped to C<p> and other characters not suitable for a
 variable name mapped to underscores.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+
 =cut
 
 sub check_alignof_type
 {
-    my ( $self, $type, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $type ) = @_;
     $self = $self->_get_instance();
-    defined($type)   or return;    # XXX prefer croak
-    ref($type) eq "" or return;
+    defined($type)   or return croak("No type to check for");
+    ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name( "alignof", $self->{lang}, $type );
     my $check_sub = sub {
-
         my @decls = (
             "#ifndef offsetof",
             "# ifdef __ICC",
@@ -1777,31 +1982,35 @@ sub check_alignof_type
             $memb   = "y";
         }
 
-        my $typealign = $self->_compute_int_compile( "offsetof($struct, $memb)", $prologue, @decls );
+        my $typealign = $self->_compute_int_compile( "offsetof($struct, $memb)", $options->{prologue}, @decls );
         $self->define_var(
             _alignof_type_define_name($type),
             $typealign ? $typealign : undef,
             "defined when alignof($type) is available"
         );
-        if ($typealign)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
+
+              $typealign
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !$typealign
+          and $options->{action_on_false}->();
 
         $typealign;
     };
 
-    $self->check_cached( $cache_name, "for align of $type", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for align of $type",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
 =head2 check_alignof_types (type, [action-if-found], [action-if-not-found], [prologue = default includes])
@@ -1812,33 +2021,63 @@ If I<action-if-found> is given, it is additionally executed when all of the
 aligns of the types could determined. If I<action-if-not-found> is given, it
 is executed when one align of the types could not determined.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+Given callbacks for I<action_on_align_true> or I<action_on_align_false> are
+called for each symbol checked using L</check_alignof_type> receiving the
+symbol as first argument.
+
 =cut
 
 sub check_alignof_types
 {
-    my ( $self, $types, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $types ) = @_;
     $self = $self->_get_instance();
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
     my $have_aligns = 1;
     foreach my $type (@$types)
     {
-        $have_aligns &= !!( $self->check_alignof_type( $type, undef, undef, $prologue ) );
+        $have_aligns &= !!(
+            $self->check_alignof_type(
+                $type,
+                {
+                    %pass_options,
+                    (
+                        $options->{action_on_align_true} && "CODE" eq ref $options->{action_on_align_true}
+                        ? ( action_on_true => sub { $options->{action_on_align_true}->($type) } )
+                        : ()
+                    ),
+                    (
+                        $options->{action_on_align_false} && "CODE" eq ref $options->{action_on_align_false}
+                        ? ( action_on_false => sub { $options->{action_on_align_false}->($type) } )
+                        : ()
+                    ),
+                }
+            )
+        );
     }
 
-    if ($have_aligns)
-    {
-        if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-        {
-            &{$action_if_found}();
-        }
-    }
-    else
-    {
-        if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-        {
-            &{$action_if_not_found}();
-        }
-    }
+          $have_aligns
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_aligns
+      and $options->{action_on_false}->();
 
     $have_aligns;
 }
@@ -1851,18 +2090,19 @@ sub _have_member_define_name
     $have_name;
 }
 
-=head2 check_member (member, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_member( member, \%options? )
 
 Check whether I<member> is in form of I<aggregate>.I<member> and
-I<member> is a member of the I<aggregate> aggregate. I<prologue>
-should be a series of include directives, defaulting to
-I<default includes>, which are used prior to the aggregate under test.
+I<member> is a member of the I<aggregate> aggregate.
+
+which are used prior to the aggregate under test.
 
   Config::AutoConf->check_member(
     "struct STRUCT_SV.sv_refcnt",
-    undef,
-    sub { Config::AutoConf->msg_failure( "sv_refcnt member required for struct STRUCT_SV" ); }
-    "#include <EXTERN.h>\n#include <perl.h>"
+    {
+      action_on_false => sub { Config::AutoConf->msg_failure( "sv_refcnt member required for struct STRUCT_SV" ); },
+      prologue => "#include <EXTERN.h>\n#include <perl.h>"
+    }
   );
 
 If I<aggregate> aggregate has I<member> member, preprocessor
@@ -1871,16 +2111,26 @@ and dots replaced by underscores) is defined.
 
 This macro caches its result in the C<ac_cv_>aggr_member variable.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+
 =cut
 
 sub check_member
 {
-    my ( $self, $member, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $member ) = @_;
     $self = $self->_get_instance();
-    defined($member)   or return;    # XXX prefer croak
-    ref($member) eq "" or return;
+    defined($member)   or return croak("No type to check for");
+    ref($member) eq "" or return croak("No type to check for");
 
-    $member =~ m/^([^.]+)\.([^.]+)$/ or return;
+    $member =~ m/^([^.]+)\.([^.]+)$/ or return croak("check_member(\"struct foo.member\", \%options)");
     my $type = $1;
     $member = $2;
 
@@ -1892,86 +2142,97 @@ sub check_member
   if( check_aggr.$member )
     return 0;
 ACEOF
-        my $conftest = $self->lang_build_program( $prologue, $body );
+        my $conftest = $self->lang_build_program( $options->{prologue}, $body );
 
-        my $have_member = $self->compile_if_else($conftest);
+        my $have_member = $self->compile_if_else(
+            $conftest,
+            {
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
         $self->define_var(
             _have_member_define_name($member),
             $have_member ? $have_member : undef,
             "defined when $member is available"
         );
-        if ($have_member)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
-
         $have_member;
     };
 
-    $self->check_cached( $cache_name, "for $type.$member", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for $type.$member",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
-=head2 check_members (members, [action-if-found], [action-if-not-found], [prologue = default includes])
+=head2 check_members( members, \%options? )
 
 For each member L<check_member> is called to check for member of aggregate.
 
-If I<action-if-found> is given, it is additionally executed when all of the
-aggregate members are found. If I<action-if-not-found> is given, it is
-executed when one of the aggregate members is not found.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be favoured
+over C<default includes> (represented by L</_default_includes>). If any of
+I<action_on_cache_true>, I<action_on_cache_false> is defined, both callbacks
+are passed to L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+Given callbacks for I<action_on_member_true> or I<action_on_member_false> are
+called for each symbol checked using L</check_member> receiving the symbol as
+first argument.
 
 =cut
 
 sub check_members
 {
-    my ( $self, $members, $action_if_found, $action_if_not_found, $prologue ) = @_;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $members ) = @_;
     $self = $self->_get_instance();
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
     my $have_members = 1;
     foreach my $member (@$members)
     {
-        $have_members &= $self->check_member( $member, undef, undef, $prologue );
+        $have_members &= !!(
+            $self->check_member(
+                $member,
+                {
+                    %pass_options,
+                    (
+                        $options->{action_on_member_true} && "CODE" eq ref $options->{action_on_member_true}
+                        ? ( action_on_true => sub { $options->{action_on_member_true}->($member) } )
+                        : ()
+                    ),
+                    (
+                        $options->{action_on_member_false} && "CODE" eq ref $options->{action_on_member_false}
+                        ? ( action_on_false => sub { $options->{action_on_member_false}->($member) } )
+                        : ()
+                    ),
+                }
+            )
+        );
     }
 
-    if ($have_members)
-    {
-        if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-        {
-            &{$action_if_found}();
-        }
-    }
-    else
-    {
-        if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-        {
-            &{$action_if_not_found}();
-        }
-    }
+          $have_members
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_members
+      and $options->{action_on_false}->();
 
     $have_members;
-}
-
-=head2 check_headers
-
-This function uses check_header to check if a set of include files exist in the system and can
-be included and compiled by the available compiler. Returns the name of the first header file found.
-
-=cut
-
-sub check_headers
-{
-    my $self = shift;
-    $self->check_header($_) and return $_ for (@_);
-    return;
 }
 
 sub _have_header_define_name
@@ -1984,6 +2245,8 @@ sub _have_header_define_name
 
 sub _check_header
 {
+    my $options = {};
+    scalar @_ > 4 and ref $_[-1] eq "HASH" and $options = pop @_;
     my ( $self, $header, $prologue, $body ) = @_;
 
     $prologue .= <<"_ACEOF";
@@ -1991,11 +2254,10 @@ sub _check_header
 _ACEOF
     my $conftest = $self->lang_build_program( $prologue, $body );
 
-    my $have_header = $self->compile_if_else($conftest);
-    $have_header;
+    $self->compile_if_else( $conftest, $options );
 }
 
-=head2 check_header
+=head2 check_header( $header, \%options? )
 
 This function is used to check if a specific header file is present in
 the system: if we detect it and if we can compile anything with that
@@ -2009,32 +2271,76 @@ The standard usage for this module is:
 This function will return a true value (1) on success, and a false value
 if the header is not present or not available for common usage.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+When a I<prologue> exists in the optional hash at end, it will be prepended
+to the tested header. If any of I<action_on_cache_true>,
+I<action_on_cache_false> is defined, both callbacks are passed to
+L</check_cached> as I<action_on_true> or I<action_on_false> to
+C<check_cached>, respectively.
+
 =cut
 
 sub check_header
 {
-    my $self    = shift;
-    my $header  = shift;
-    my $pre_inc = shift;
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $header ) = @_;
+    $self = $self->_get_instance();
+    defined($header)   or return croak("No type to check for");
+    ref($header) eq "" or return croak("No type to check for");
 
     return 0 unless $header;
     my $cache_name = $self->_cache_name($header);
     my $check_sub  = sub {
-        my $prologue = "";
-        defined $pre_inc
-          and $prologue .= "$pre_inc\n";
+        my $prologue = defined $options->{prologue} ? $options->{prologue} : "";
 
-        my $have_header = $self->_check_header( $header, $prologue, "" );
+        my $have_header = $self->_check_header(
+            $header,
+            $prologue,
+            "",
+            {
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
         $self->define_var(
             _have_header_define_name($header),
             $have_header ? $have_header : undef,
             "defined when $header is available"
         );
 
-        return $have_header;
+        $have_header;
     };
 
-    $self->check_cached( $cache_name, "for $header", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for $header",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
+}
+
+=head2 check_headers
+
+This function uses check_header to check if a set of include files exist
+in the system and can be included and compiled by the available compiler.
+Returns the name of the first header file found.
+
+Passes an optional \%options hash to each L</check_header> call.
+
+=cut
+
+sub check_headers
+{
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my $self = shift->_get_instance();
+    $self->check_header( $_, $options ) and return $_ for (@_);
+    return;
 }
 
 =head2 check_all_headers
@@ -2045,14 +2351,48 @@ This function checks each given header for usability.
 
 sub check_all_headers
 {
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
     @_ or return;
-    my $rc = 1;
+
+    my %pass_options;
+    defined $options->{prologue}              and $pass_options{prologue}              = $options->{prologue};
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
+
+    my $all_headers = 1;
     foreach my $header (@_)
     {
-        $rc &= $self->check_header($header);
+        $all_headers &= $self->check_header(
+            $header,
+            {
+                %pass_options,
+                (
+                    $options->{action_on_header_true} && "CODE" eq ref $options->{action_on_header_true}
+                    ? ( action_on_true => sub { $options->{action_on_header_true}->($header) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_header_false} && "CODE" eq ref $options->{action_on_header_false}
+                    ? ( action_on_false => sub { $options->{action_on_header_false}->($header) } )
+                    : ()
+                ),
+            }
+        );
     }
-    $rc;
+
+          $all_headers
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$all_headers
+      and $options->{action_on_false}->();
+
+    $all_headers;
 }
 
 =head2 check_stdc_headers
@@ -2066,16 +2406,17 @@ Returns a false value if it fails.
 
 =cut
 
+my @ansi_c_headers = qw(stdlib stdarg string float assert ctype errno limits locale math setjmp signal stddef stdio time);
+
 sub check_stdc_headers
 {
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
-    my $rc   = 0;
-    if ( $rc = $self->check_all_headers(qw(stdlib.h stdarg.h string.h float.h)) )
-    {
-        $rc &= $self->check_all_headers(qw/assert.h ctype.h errno.h limits.h/);
-        $rc &= $self->check_all_headers(qw/locale.h math.h setjmp.h signal.h/);
-        $rc &= $self->check_all_headers(qw/stddef.h stdio.h time.h/);
-    }
+
+    # XXX for C++ the map should look like "c${_}" ...
+    my @c_ansi_c_headers = map { "${_}.h" } @ansi_c_headers;
+    my $rc = $self->check_all_headers( @c_ansi_c_headers, $options );
     $rc and $self->define_var( "STDC_HEADERS", 1, "Define to 1 if you have the ANSI C header files." );
     $rc;
 }
@@ -2089,10 +2430,11 @@ sys/types.h, sys/stat.h, memory.h, strings.h, inttypes.h, stdint.h and unistd.h
 
 sub check_default_headers
 {
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
-    my $rc   = $self->check_stdc_headers()
-      and $self->check_all_headers(qw(sys/types.h sys/stat.h memory.h strings.h inttypes.h stdint.h unistd.h));
-    $rc;
+    $self->check_stdc_headers($options)
+      and $self->check_all_headers( qw(sys/types.h sys/stat.h memory.h strings.h inttypes.h stdint.h unistd.h), $options );
 }
 
 =head2 check_dirent_header
@@ -2139,6 +2481,8 @@ might not need touse this macro.
 
 sub check_dirent_header
 {
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
 
     my $cache_name = $self->_cache_name("header_dirent");

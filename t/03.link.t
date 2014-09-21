@@ -24,7 +24,13 @@ ok( $ac_1->check_header("stdio.h") ) or plan skip_all => "No working compile env
 
 ok( $ac_1->check_func("printf"), "Every system should have a printf" );
 my $set_me;
-$ac_1->check_func( "scanf", sub { $set_me = 1 }, sub { $set_me = 0 } );
+$ac_1->check_func(
+    "scanf",
+    {
+        action_on_true  => sub { $set_me = 1 },
+        action_on_false => sub { $set_me = 0 }
+    }
+);
 ok( defined $set_me, "Having scanf or not, but now we know" );
 ok( $ac_1->check_funcs( [qw(sprintf sscanf)] ), "Every system should have sprintf and sscanf" );
 
