@@ -2345,7 +2345,17 @@ sub check_headers
 
 =head2 check_all_headers
 
-This function checks each given header for usability.
+This function checks each given header for usability and returns true
+when each header can be used -- otherwise false.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+Each of existing key/value pairs using I<prologue>, I<action_on_cache_true>
+or I<action_on_cache_false> as key are passed throuh to each call of
+L</check_header>.
+Given callbacks for I<action_on_header_true> or I<action_on_header_false> are
+called for each symbol checked using L</check_header> receiving the symbol as
+first argument.
 
 =cut
 
@@ -2404,6 +2414,8 @@ stdio.h and time.h.
 
 Returns a false value if it fails.
 
+Passes an optional \%options hash to each L</check_all_headers> call.
+
 =cut
 
 my @ansi_c_headers = qw(stdlib stdarg string float assert ctype errno limits locale math setjmp signal stddef stdio time);
@@ -2423,8 +2435,10 @@ sub check_stdc_headers
 
 =head2 check_default_headers
 
-This function checks for some default headers, the std c89 haeders and
+This function checks for some default headers, the std c89 headers and
 sys/types.h, sys/stat.h, memory.h, strings.h, inttypes.h, stdint.h and unistd.h
+
+Passes an optional \%options hash to each L</check_all_headers> call.
 
 =cut
 
@@ -2473,9 +2487,19 @@ type C<struct dirent>, not C<struct direct>, and would access the length
 of a directory entry name by passing a pointer to a C<struct dirent> to
 the C<NAMLEN> macro.
 
-This macro might be obsolescent, as all current systems with directory
+This method might be obsolescent, as all current systems with directory
 libraries have C<<E<lt>dirent.hE<gt>>>. Programs supporting only newer OS
-might not need touse this macro.
+might not need touse this method.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+Each of existing key/value pairs using I<prologue>, I<action_on_header_true>
+(as I<action_on_true> having the name of the tested header as first argument)
+or I<action_on_header_false> (as I<action_on_false> having the name of the
+tested header as first argument) as key are passed throuh to each call of
+L</_check_header>.
+Given callbacks for I<action_on_cache_true> or I<action_on_cache_false> are
+passed to the call of L</check_cached>.
 
 =cut
 
@@ -2485,13 +2509,32 @@ sub check_dirent_header
     scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
 
+    my %pass_options;
+    defined $options->{prologue} and $pass_options{prologue} = $options->{prologue};
+
     my $cache_name = $self->_cache_name("header_dirent");
     my $check_sub  = sub {
-
         my $have_dirent;
         foreach my $header (qw(dirent.h sys/ndir.h sys/dir.h ndir.h))
         {
-            $have_dirent = $self->_check_header( $header, "#include <sys/types.h>\n", "if ((DIR *) 0) { return 0; }" );
+            $have_dirent = $self->_check_header(
+                $header,
+                "#include <sys/types.h>\n",
+                "if ((DIR *) 0) { return 0; }",
+                {
+                    %pass_options,
+                    (
+                        $options->{action_on_header_true} && "CODE" eq ref $options->{action_on_header_true}
+                        ? ( action_on_true => sub { $options->{action_on_header_true}->($header) } )
+                        : ()
+                    ),
+                    (
+                        $options->{action_on_header_false} && "CODE" eq ref $options->{action_on_header_false}
+                        ? ( action_on_false => sub { $options->{action_on_header_false}->($header) } )
+                        : ()
+                    ),
+                }
+            );
             $self->define_var(
                 _have_header_define_name($header),
                 $have_dirent ? $have_dirent : undef,
@@ -2503,15 +2546,33 @@ sub check_dirent_header
         $have_dirent;
     };
 
-    $self->check_cached( $cache_name, "for header defining DIR *", $check_sub );
-}
+    my $dirent_header = $self->check_cached(
+        $cache_name,
+        "for header defining DIR *",
+        $check_sub,
+        {
+            (
+                $options->{action_on_cache_true}
+                  && "CODE" eq ref $options->{action_on_cache_true} ? ( action_on_cache_true => $options->{action_on_cache_true} )
+                : ()
+            ),
+            (
+                $options->{action_on_cache_false} && "CODE" eq ref $options->{action_on_cache_false}
+                ? ( action_on_cache_false => $options->{action_on_cache_false} )
+                : ()
+            ),
+        }
+    );
 
-sub _have_lib_define_name
-{
-    my $lib       = $_[0];
-    my $have_name = "HAVE_LIB" . uc($lib);
-    $have_name =~ tr/_A-Za-z0-9/_/c;
-    return $have_name;
+          $dirent_header
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$dirent_header
+      and $options->{action_on_false}->();
 }
 
 =head2 _check_perlapi_program
@@ -2704,6 +2765,14 @@ sub check_lm
     else         { $aif  && $aif->() }
 
     $required;
+}
+
+sub _have_lib_define_name
+{
+    my $lib       = $_[0];
+    my $have_name = "HAVE_LIB" . uc($lib);
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    return $have_name;
 }
 
 =head2 check_lib( lib, func, [ action-if-found ], [ action-if-not-found ], [ @other-libs ] )
