@@ -2994,7 +2994,7 @@ sub pkg_config_package_flags
     $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
 }
 
-=head2 _check_pureperl_build_wanted
+=head2 _check_mm_pureperl_build_wanted
 
 This method proves the C<_argv> attribute and (when set) the C<PERL_MM_OPT>
 whether they contain I<PUREPERL_ONLY=(0|1)> or not. The attribute C<_force_xs>
@@ -3017,7 +3017,7 @@ sub _check_mm_pureperl_build_wanted
     0;
 }
 
-=head2 _check_pureperl_build_wanted
+=head2 _check_mb_pureperl_build_wanted
 
 This method proves the C<_argv> attribute and (when set) the C<PERL_MB_OPT>
 whether they contain I<--pureperl-only> or not.
@@ -3051,8 +3051,9 @@ simply 0 is returned.
 
 sub _check_pureperl_required
 {
-    $0 =~ m/Makefile\.PL$/i and goto \&_check_mm_pureperl_build_wanted;
-    $0 =~ m/Build\.PL$/i    and goto \&_check_mb_pureperl_build_wanted;
+    my $sehf = shift;
+    $0 =~ m/Makefile\.PL$/i and return $self->_check_mm_pureperl_build_wanted(@_);
+    $0 =~ m/Build\.PL$/i    and return $self->_check_mb_pureperl_build_wanted(@_);
 
     0;
 }
