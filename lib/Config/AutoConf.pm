@@ -2573,6 +2573,8 @@ sub check_dirent_header
       and ref $options->{action_on_false} eq "CODE"
       and !$dirent_header
       and $options->{action_on_false}->();
+
+    $dirent_header;
 }
 
 =head2 _check_perlapi_program
@@ -3051,7 +3053,7 @@ simply 0 is returned.
 
 sub _check_pureperl_required
 {
-    my $sehf = shift;
+    my $self = shift;
     $0 =~ m/Makefile\.PL$/i and return $self->_check_mm_pureperl_build_wanted(@_);
     $0 =~ m/Build\.PL$/i    and return $self->_check_mb_pureperl_build_wanted(@_);
 
@@ -3098,15 +3100,25 @@ die with error if not
 
 When all checks passed successfully, return a true value.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+
 =cut
 
 sub check_produce_xs_build
 {
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance;
-    $self->check_pureperl_required() and return 0;
-    $self->check_valid_compilers( $_[0] || [qw(C)] ) or return 0;
+    $self->check_pureperl_required() and return _on_return_callback_helper( 0, $options, "action_on_false" );
+    $self->check_valid_compilers( $_[0] || [qw(C)] ) or return _on_return_callback_helper( 0, $options, "action_on_false" );
     # XXX necessary check for $Config{useshrlib}? (need to dicuss with eg. TuX, 99% likely return 0)
     $self->check_compile_perlapi_or_die();
+
+    $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
     return 1;
 }
 
@@ -3117,6 +3129,9 @@ a dynamic linked object which can be loaded using Perl's Dynaloader.
 
 The extension over L</check_produce_xs_build> can be avoided by adding the
 C<notest_loadable_xs> to C<$ENV{PERL5_AC_OPTS}>.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
 
 =cut
 
@@ -3209,6 +3224,18 @@ sub _set_language
 
     $self->{lang} = $lang;
 
+    return;
+}
+
+sub _on_return_callback_helper
+{
+    my $callback = pop @_;
+    my $options  = pop @_;
+    $options->{$callback}
+      and ref $options->{$callback} eq "CODE"
+      and $options->{$callback}->();
+    @_ and wantarray and return @_;
+    1 == scalar @_ and return $_[0];
     return;
 }
 
