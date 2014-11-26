@@ -3023,7 +3023,7 @@ sub check_lm
     $required;
 }
 
-=head2 pkg_config_package_flags($package, [action-if-found], [action-if-not-found])
+=head2 pkg_config_package_flags($package, \%options?)
 
 Search for pkg-config flags for package as specified. The flags which are
 extracted are C<--cflags> and C<--libs>. The extracted flags are appended
@@ -3031,6 +3031,12 @@ to the global C<extra_compile_flags> and C<extra_link_flags>, respectively.
 
 Call it with the package you're looking for and optional callback whether
 found or not.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to L</check_cached>, respectively.
 
 =cut
 
@@ -3049,10 +3055,14 @@ sub _pkg_config_flag
 
 sub pkg_config_package_flags
 {
-    my ( $self, $package, $action_if_found, $action_if_not_found ) = @_;
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my ( $self, $package ) = @_;
     $self = $self->_get_instance();
+
     ( my $pkgpfx = $package ) =~ s/^(\w+).*?$/$1/;
     my $cache_name = $self->_cache_name( "pkg", $pkgpfx );
+
     defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
     my $check_sub = sub {
         my ( @pkg_cflags, @pkg_libs );
@@ -3078,10 +3088,30 @@ sub pkg_config_package_flags
               split( m/\n/, $LIBS )
         ) and push @{ $self->{extra_link_flags} }, @pkg_libs;
 
-        join( " ", @pkg_cflags, @pkg_libs );
+        my $pkg_config_flags = join( " ", @pkg_cflags, @pkg_libs );
+
+              $pkg_config_flags
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !$pkg_config_flags
+          and $options->{action_on_false}->();
+
+        $pkg_config_flags;
     };
 
-    $self->check_cached( $cache_name, "for pkg-config package of $package", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for pkg-config package of $package",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
 =head2 _check_mm_pureperl_build_wanted
