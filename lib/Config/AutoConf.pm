@@ -2728,103 +2728,6 @@ sub check_link_perlapi
     $self->check_cached( $cache_name, "whether perlapi is linkable", sub { $self->_check_link_perlapi } );
 }
 
-sub _check_lm_funcs { qw(log2 pow log10 log exp sqrt) }
-
-=head2 check_lm( \%options? )
-
-This method is used to check if some common C<math.h> functions are
-available, and if C<-lm> is needed. Returns the empty string if no
-library is needed, or the "-lm" string if libm is needed.
-
-If the very last parameter contains a hash reference, C<CODE> references
-to I<action_on_true> or I<action_on_false> are executed, respectively.
-Each of existing key/value pairs using I<action_on_func_true> (as
-I<action_on_true> having the name of the tested functions as first argument),
-I<action_on_func_false> (as I<action_on_false> having the name of the tested
-functions as first argument), I<action_on_func_lib_true> (as
-I<action_on_lib_true> having the name of the tested functions as first
-argument), I<action_on_func_lib_false> (as I<action_on_lib_false> having
-the name of the tested functions as first argument) as key are passed
-throuh to each call of L</search_libs>.
-Given callbacks for I<action_on_lib_true>, I<action_on_lib_false>,
-I<action_on_cache_true> or I<action_on_cache_false> are passed to the
-call of L</search_libs>.
-
-B<Note> that I<action_on_lib_true> and I<action_on_func_lib_true> or
-I<action_on_lib_false> and I<action_on_func_lib_false> cannot be used
-at the same time, respectively.
-
-=cut
-
-sub check_lm
-{
-    my $options = {};
-    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
-    my $self = shift->_get_instance();
-
-    defined $options->{action_on_lib_true}
-      and defined $options->{action_on_func_lib_true}
-      and croak("action_on_lib_true and action_on_func_lib_true cannot be used together");
-    defined $options->{action_on_lib_false}
-      and defined $options->{action_on_func_lib_false}
-      and croak("action_on_lib_false and action_on_func_lib_false cannot be used together");
-
-    my %pass_options;
-    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
-    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
-    defined $options->{action_on_lib_true}    and $pass_options{action_on_lib_true}    = $options->{action_on_lib_true};
-    defined $options->{action_on_lib_false}   and $pass_options{action_on_lib_false}   = $options->{action_on_lib_false};
-
-    my $fail       = 0;
-    my $required   = "";
-    my @math_funcs = $self->_check_lm_funcs;
-    for my $func (@math_funcs)
-    {
-        my $ans = $self->search_libs(
-            $func,
-            ['m'],
-            {
-                %pass_options,
-                (
-                    $options->{action_on_func_true} && "CODE" eq ref $options->{action_on_func_true}
-                    ? ( action_on_true => sub { $options->{action_on_func_true}->( $func, @_ ) } )
-                    : ()
-                ),
-                (
-                    $options->{action_on_func_false} && "CODE" eq ref $options->{action_on_func_false}
-                    ? ( action_on_false => sub { $options->{action_on_func_false}->( $func, @_ ) } )
-                    : ()
-                ),
-                (
-                    $options->{action_on_func_lib_true} && "CODE" eq ref $options->{action_on_func_lib_true}
-                    ? ( action_on_lib_true => sub { $options->{action_on_func_lib_true}->( $func, @_ ) } )
-                    : ()
-                ),
-                (
-                    $options->{action_on_func_lib_false} && "CODE" eq ref $options->{action_on_func_lib_false}
-                    ? ( action_on_lib_false => sub { $options->{action_on_func_lib_false}->( $func, @_ ) } )
-                    : ()
-                ),
-            },
-        );
-
-        $ans or $fail = 1;
-        $ans ne "none required" and $required = $ans;
-    }
-
-         !$fail
-      and $options->{action_on_true}
-      and ref $options->{action_on_true} eq "CODE"
-      and $options->{action_on_true}->();
-
-          $fail
-      and $options->{action_on_false}
-      and ref $options->{action_on_false} eq "CODE"
-      and $options->{action_on_false}->();
-
-    $required;
-}
-
 sub _have_lib_define_name
 {
     my $lib       = $_[0];
@@ -3021,6 +2924,103 @@ sub search_libs
             ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
         }
     );
+}
+
+sub _check_lm_funcs { qw(log2 pow log10 log exp sqrt) }
+
+=head2 check_lm( \%options? )
+
+This method is used to check if some common C<math.h> functions are
+available, and if C<-lm> is needed. Returns the empty string if no
+library is needed, or the "-lm" string if libm is needed.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+Each of existing key/value pairs using I<action_on_func_true> (as
+I<action_on_true> having the name of the tested functions as first argument),
+I<action_on_func_false> (as I<action_on_false> having the name of the tested
+functions as first argument), I<action_on_func_lib_true> (as
+I<action_on_lib_true> having the name of the tested functions as first
+argument), I<action_on_func_lib_false> (as I<action_on_lib_false> having
+the name of the tested functions as first argument) as key are passed
+throuh to each call of L</search_libs>.
+Given callbacks for I<action_on_lib_true>, I<action_on_lib_false>,
+I<action_on_cache_true> or I<action_on_cache_false> are passed to the
+call of L</search_libs>.
+
+B<Note> that I<action_on_lib_true> and I<action_on_func_lib_true> or
+I<action_on_lib_false> and I<action_on_func_lib_false> cannot be used
+at the same time, respectively.
+
+=cut
+
+sub check_lm
+{
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my $self = shift->_get_instance();
+
+    defined $options->{action_on_lib_true}
+      and defined $options->{action_on_func_lib_true}
+      and croak("action_on_lib_true and action_on_func_lib_true cannot be used together");
+    defined $options->{action_on_lib_false}
+      and defined $options->{action_on_func_lib_false}
+      and croak("action_on_lib_false and action_on_func_lib_false cannot be used together");
+
+    my %pass_options;
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
+    defined $options->{action_on_lib_true}    and $pass_options{action_on_lib_true}    = $options->{action_on_lib_true};
+    defined $options->{action_on_lib_false}   and $pass_options{action_on_lib_false}   = $options->{action_on_lib_false};
+
+    my $fail       = 0;
+    my $required   = "";
+    my @math_funcs = $self->_check_lm_funcs;
+    for my $func (@math_funcs)
+    {
+        my $ans = $self->search_libs(
+            $func,
+            ['m'],
+            {
+                %pass_options,
+                (
+                    $options->{action_on_func_true} && "CODE" eq ref $options->{action_on_func_true}
+                    ? ( action_on_true => sub { $options->{action_on_func_true}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_false} && "CODE" eq ref $options->{action_on_func_false}
+                    ? ( action_on_false => sub { $options->{action_on_func_false}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_lib_true} && "CODE" eq ref $options->{action_on_func_lib_true}
+                    ? ( action_on_lib_true => sub { $options->{action_on_func_lib_true}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_lib_false} && "CODE" eq ref $options->{action_on_func_lib_false}
+                    ? ( action_on_lib_false => sub { $options->{action_on_func_lib_false}->( $func, @_ ) } )
+                    : ()
+                ),
+            },
+        );
+
+        $ans or $fail = 1;
+        $ans ne "none required" and $required = $ans;
+    }
+
+         !$fail
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+          $fail
+      and $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and $options->{action_on_false}->();
+
+    $required;
 }
 
 =head2 pkg_config_package_flags($package, [action-if-found], [action-if-not-found])
