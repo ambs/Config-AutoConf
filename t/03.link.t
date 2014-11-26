@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Test::More;
-
 use Config::AutoConf;
 
 END
@@ -15,11 +14,9 @@ END
     }
 }
 
-my ( $ac_1, $ac_2 );
+my $ac_1;
 
 ok( $ac_1 = Config::AutoConf->new( logfile => "config3.log" ), "Instantiating Config::AutoConf for check_lib() tests" );
-ok( $ac_2 = Config::AutoConf->new( logfile => "config4.log" ), "Instantiating Config::AutoConf for search_libs() tests" );
-
 ok( $ac_1->check_header("stdio.h") ) or plan skip_all => "No working compile environment";
 
 ok( $ac_1->check_func("printf"), "Every system should have a printf" );
@@ -42,10 +39,47 @@ TODO:
     ok( !$ac_1->check_lib( "m", "foobar" ), "foobar() not in -lm" );
     ok( $ac_1->check_lib( "m", "atan" ), "atan() in -lm" );
 
-    my $where_atan;
+    my ( $where_atan, $ac_2 );
+    ok( $ac_2 = Config::AutoConf->new( logfile => "config4.log" ), "Instantiating Config::AutoConf for search_libs() tests" );
     ok( $where_atan = $ac_2->search_libs( "atan", [qw(m)] ), "searching lib for atan()" );
     isnt( $where_atan, 0, "library for atan() found (or none required)" );
 }
+
+my ( $ac_3, %math_funcs );
+ok( $ac_3 = Config::AutoConf->new( logfile => "config4_2.log" ), "Instantiating Config::AutoConf for check_lm() tests" );
+$ac_3->check_lm(
+    {
+        action_on_func_lib_true  => sub { my ( $func, $lib, @extra ) = @_; $math_funcs{$func} = $lib },
+        action_on_func_lib_false => sub { my ( $func, $lib, @extra ) = @_; $math_funcs{$func} = 0 },
+    }
+);
+is_deeply(
+    [ sort keys %math_funcs ],
+    [ sort $ac_3->_check_lm_funcs ],
+    "Math functions (" . join( ", ", $ac_3->_check_lm_funcs ) . ") tested for -lm"
+);
+
+eval
+{
+    $ac_3->check_lm(
+        {
+            action_on_lib_true      => sub { },
+            action_on_func_lib_true => sub { },
+        }
+    );
+};
+ok( $@, "action_on_lib_true and action_on_func_lib_true cannot be used together" );
+
+eval
+{
+    $ac_3->check_lm(
+        {
+            action_on_lib_false      => sub { },
+            action_on_func_lib_false => sub { },
+        }
+    );
+};
+ok( $@, "action_on_lib_false and action_on_func_lib_false cannot be used together" );
 
 TODO:
 {

@@ -704,6 +704,7 @@ sub msg_failure
 =head2 define_var( $name, $value [, $comment ] )
 
 Defines a check variable for later use in further checks or code to compile.
+Returns the value assigned value
 
 =cut
 
@@ -713,10 +714,8 @@ sub define_var
     my ( $name, $value, $comment ) = @_;
 
     defined($name) or croak("Need a name to add a define");
-
     $self->{defines}->{$name} = [ $value, $comment ];
-
-    return;
+    $value;
 }
 
 =head2 write_config_h( [$target] )
@@ -2543,6 +2542,16 @@ sub check_dirent_header
             $have_dirent and $have_dirent = $header and last;
         }
 
+              $have_dirent
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !$have_dirent
+          and $options->{action_on_false}->();
+
         $have_dirent;
     };
 
@@ -2551,28 +2560,10 @@ sub check_dirent_header
         "for header defining DIR *",
         $check_sub,
         {
-            (
-                $options->{action_on_cache_true}
-                  && "CODE" eq ref $options->{action_on_cache_true} ? ( action_on_cache_true => $options->{action_on_cache_true} )
-                : ()
-            ),
-            (
-                $options->{action_on_cache_false} && "CODE" eq ref $options->{action_on_cache_false}
-                ? ( action_on_cache_false => $options->{action_on_cache_false} )
-                : ()
-            ),
+            ( $options->{action_on_cache_true}  ? ( action_on__true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on__false => $options->{action_on_cache_false} ) : () ),
         }
     );
-
-          $dirent_header
-      and $options->{action_on_true}
-      and ref $options->{action_on_true} eq "CODE"
-      and $options->{action_on_true}->();
-
-    $options->{action_on_false}
-      and ref $options->{action_on_false} eq "CODE"
-      and !$dirent_header
-      and $options->{action_on_false}->();
 
     $dirent_header;
 }
@@ -2737,34 +2728,99 @@ sub check_link_perlapi
     $self->check_cached( $cache_name, "whether perlapi is linkable", sub { $self->_check_link_perlapi } );
 }
 
-=head2 check_lm( [ action-if-found ], [ action-if-not-found ] )
+sub _check_lm_funcs { qw(log2 pow log10 log exp sqrt) }
+
+=head2 check_lm( \%options? )
 
 This method is used to check if some common C<math.h> functions are
 available, and if C<-lm> is needed. Returns the empty string if no
 library is needed, or the "-lm" string if libm is needed.
 
-Actions are only called at the end of the list of tests. If one fails,
-I<action-if-not-found> is run. Otherwise, I<action-if-found> is run.
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+Each of existing key/value pairs using I<action_on_func_true> (as
+I<action_on_true> having the name of the tested functions as first argument),
+I<action_on_func_false> (as I<action_on_false> having the name of the tested
+functions as first argument), I<action_on_func_lib_true> (as
+I<action_on_lib_true> having the name of the tested functions as first
+argument), I<action_on_func_lib_false> (as I<action_on_lib_false> having
+the name of the tested functions as first argument) as key are passed
+throuh to each call of L</search_libs>.
+Given callbacks for I<action_on_lib_true>, I<action_on_lib_false>,
+I<action_on_cache_true> or I<action_on_cache_false> are passed to the
+call of L</search_libs>.
+
+B<Note> that I<action_on_lib_true> and I<action_on_func_lib_true> or
+I<action_on_lib_false> and I<action_on_func_lib_false> cannot be used
+at the same time, respectively.
 
 =cut
 
 sub check_lm
 {
-    my ( $self, $aif, $ainf ) = @_;
-    ref($self) or $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my $self = shift->_get_instance();
 
-    my $fail     = 0;
-    my $required = "";
-    for my $func (qw(log2 pow log10 log exp sqrt))
+    defined $options->{action_on_lib_true}
+      and defined $options->{action_on_func_lib_true}
+      and croak("action_on_lib_true and action_on_func_lib_true cannot be used together");
+    defined $options->{action_on_lib_false}
+      and defined $options->{action_on_func_lib_false}
+      and croak("action_on_lib_false and action_on_func_lib_false cannot be used together");
+
+    my %pass_options;
+    defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
+    defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
+    defined $options->{action_on_lib_true}    and $pass_options{action_on_lib_true}    = $options->{action_on_lib_true};
+    defined $options->{action_on_lib_false}   and $pass_options{action_on_lib_false}   = $options->{action_on_lib_false};
+
+    my $fail       = 0;
+    my $required   = "";
+    my @math_funcs = $self->_check_lm_funcs;
+    for my $func (@math_funcs)
     {
-        my $ans = $self->search_libs( $func, ['m'] );
+        my $ans = $self->search_libs(
+            $func,
+            ['m'],
+            {
+                %pass_options,
+                (
+                    $options->{action_on_func_true} && "CODE" eq ref $options->{action_on_func_true}
+                    ? ( action_on_true => sub { $options->{action_on_func_true}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_false} && "CODE" eq ref $options->{action_on_func_false}
+                    ? ( action_on_false => sub { $options->{action_on_func_false}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_lib_true} && "CODE" eq ref $options->{action_on_func_lib_true}
+                    ? ( action_on_lib_true => sub { $options->{action_on_func_lib_true}->( $func, @_ ) } )
+                    : ()
+                ),
+                (
+                    $options->{action_on_func_lib_false} && "CODE" eq ref $options->{action_on_func_lib_false}
+                    ? ( action_on_lib_false => sub { $options->{action_on_func_lib_false}->( $func, @_ ) } )
+                    : ()
+                ),
+            },
+        );
 
         $ans or $fail = 1;
-        ( $ans ne "none required" ) and $required = $ans;
+        $ans ne "none required" and $required = $ans;
     }
 
-    if   ($fail) { $ainf && $ainf->() }
-    else         { $aif  && $aif->() }
+         !$fail
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
+
+          $fail
+      and $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and $options->{action_on_false}->();
 
     $required;
 }
@@ -2777,7 +2833,7 @@ sub _have_lib_define_name
     return $have_name;
 }
 
-=head2 check_lib( lib, func, [ action-if-found ], [ action-if-not-found ], [ @other-libs ] )
+=head2 check_lib( lib, func, @other-libs?, \%options? )
 
 This function is used to check if a specific library includes some
 function. Call it with the library name (without the lib portion), and
@@ -2787,10 +2843,9 @@ the name of the function you want to test:
 
 It returns 1 if the function exist, 0 otherwise.
 
-I<action-if-found> and I<action-if-not-found> can be CODE references
-whereby the default action in case of function found is to define
-the HAVE_LIBlibrary (all in capitals) preprocessor macro with 1 and
-add $lib to the list of libraries to link.
+In case of function found, the HAVE_LIBlibrary (all in capitals)
+preprocessor macro is defined with 1 and $lib together with @other_libs
+are added to the list of libraries to link with.
 
 If linking with library results in unresolved symbols that would be
 resolved by linking with additional libraries, give those libraries
@@ -2801,17 +2856,26 @@ The other-libraries argument should be limited to cases where it is
 desirable to test for one library in the presence of another that
 is not already in LIBS. 
 
+This method caches its result in the C<ac_cv_lib_>lib_func variable.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to C<check_cached>, respectively.
+
 It's recommended to use L<search_libs> instead of check_lib these days.
 
 =cut
 
 sub check_lib
 {
-    my ( $self, $lib, $func, $action_if_found, $action_if_not_found, @other_libs ) = @_;
-    ref($self) or $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my $self = shift->_get_instance();
+    my ( $lib, $func, @other_libs ) = @_;
 
-    return 0 unless $lib;
-    return 0 unless $func;
+    return 0 unless $lib and $func;
 
     scalar(@other_libs) == 1
       and ref( $other_libs[0] ) eq "ARRAY"
@@ -2823,39 +2887,35 @@ sub check_lib
 
         my @save_libs = @{ $self->{extra_libs} };
         push( @{ $self->{extra_libs} }, $lib, @other_libs );
-        my $have_lib = $self->link_if_else($conftest);
+        my $have_lib = $self->link_if_else(
+            $conftest,
+            {
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
         $self->{extra_libs} = [@save_libs];
 
-        if ($have_lib)
-        {
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-            else
-            {
-                $self->define_var( _have_lib_define_name($lib), $have_lib, "defined when library $lib is available" );
-                push( @{ $self->{extra_libs} }, $lib );
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-            else
-            {
-                $self->define_var( _have_lib_define_name($lib), undef, "defined when library $lib is available" );
-            }
-        }
+        $have_lib
+          and $self->define_var( _have_lib_define_name($lib), $have_lib, "defined when library $lib is available" )
+          and push( @{ $self->{extra_libs} }, $lib, @other_libs );
+        $have_lib
+          or $self->define_var( _have_lib_define_name($lib), undef, "defined when library $lib is available" );
         $have_lib;
     };
 
-    $self->check_cached( $cache_name, "for $func in -l$lib", $check_sub );
+    $self->check_cached(
+        $cache_name,
+        "for $func in -l$lib",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
-=head2 search_libs( function, search-libs, [action-if-found], [action-if-not-found], [other-libs] )
+=head2 search_libs( function, search-libs, @other-libs?, \%options? )
 
 Search for a library defining function if it's not already available.
 This equates to calling
@@ -2867,9 +2927,7 @@ first with no libraries, then for each library listed in search-libs.
 I<search-libs> must be specified as an array reference to avoid
 confusion in argument order.
 
-Prepend -llibrary to LIBS for the first library found to contain function,
-and run I<action-if-found>. If the function is not found, run
-I<action-if-not-found>.
+Prepend -llibrary to LIBS for the first library found to contain function.
 
 If linking with library results in unresolved symbols that would be
 resolved by linking with additional libraries, give those libraries as
@@ -2882,12 +2940,23 @@ as "none required" if function is already available, as C<0> if no
 library containing function was found, otherwise as the -llibrary option
 that needs to be prepended to LIBS.
 
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to C<check_cached>, respectively.  Given callbacks
+for I<action_on_lib_true> or I<action_on_lib_false> are called for
+each library checked using L</link_if_else> receiving the library as
+first argument and all C<@other_libs> subsequently.
+
 =cut
 
 sub search_libs
 {
-    my ( $self, $func, $libs, $action_if_found, $action_if_not_found, @other_libs ) = @_;
-    ref($self) or $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
+    my $self = shift->_get_instance();
+    my ( $func, $libs, @other_libs ) = @_;
 
     ( defined($libs) and "ARRAY" eq ref($libs) and scalar( @{$libs} ) > 0 )
       or return 0;    # XXX would prefer croak
@@ -2899,7 +2968,6 @@ sub search_libs
 
     my $cache_name = $self->_cache_name( "search", $func );
     my $check_sub = sub {
-
         my $conftest = $self->lang_call( "", $func );
 
         my @save_libs = @{ $self->{extra_libs} };
@@ -2909,30 +2977,50 @@ sub search_libs
             # XXX would local work on array refs? can we omit @save_libs?
             $self->{extra_libs} = [@save_libs];
             defined($libstest) and unshift( @{ $self->{extra_libs} }, $libstest, @other_libs );
-            $self->link_if_else($conftest) and ( $have_lib = defined($libstest) ? $libstest : "none required" ) and last;
+            $self->link_if_else(
+                $conftest,
+                {
+                    (
+                        $options->{action_on_lib_true} && "CODE" eq ref $options->{action_on_lib_true}
+                        ? ( action_on_true => sub { $options->{action_on_lib_true}->( $libstest, @other_libs, @_ ) } )
+                        : ()
+                    ),
+                    (
+                        $options->{action_on_lib_false} && "CODE" eq ref $options->{action_on_lib_false}
+                        ? ( action_on_false => sub { $options->{action_on_lib_false}->( $libstest, @other_libs, @_ ) } )
+                        : ()
+                    ),
+                }
+              )
+              and ( $have_lib = defined($libstest) ? $libstest : "none required" )
+              and last;
         }
         $self->{extra_libs} = [@save_libs];
-        if ($have_lib)
-        {
-            $have_lib eq "none required" or unshift( @{ $self->{extra_libs} }, $have_lib );
 
-            if ( defined($action_if_found) and "CODE" eq ref($action_if_found) )
-            {
-                &{$action_if_found}();
-            }
-        }
-        else
-        {
-            if ( defined($action_if_not_found) and "CODE" eq ref($action_if_not_found) )
-            {
-                &{$action_if_not_found}();
-            }
-        }
+        $have_lib eq "none required" or unshift( @{ $self->{extra_libs} }, $have_lib );
 
-        return $have_lib;
+              $have_lib
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and !$have_lib
+          and $options->{action_on_false}->();
+
+        $have_lib;
     };
 
-    return $self->check_cached( $cache_name, "for library containing $func", $check_sub );
+    return $self->check_cached(
+        $cache_name,
+        "for library containing $func",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
 }
 
 =head2 pkg_config_package_flags($package, [action-if-found], [action-if-not-found])
