@@ -3,24 +3,26 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 my %RUN_DEPS = (
-    'base'               => 0,
-    'strict'             => 0,
-    'warnings'           => 0,
-    'Carp'               => 0,
-    'Capture::Tiny'      => 0,
-    'Config'             => 0,
-    'Cwd'                => 0,
-    'Exporter'           => 0,
-    'ExtUtils::CBuilder' => '0.23',
-    'File::Basename'     => 0,
-    'File::Spec'         => 0,
-    'File::Temp'         => 0,
-    'Text::ParseWords'   => 0,
+    'base'             => 0,
+    'strict'           => 0,
+    'warnings'         => 0,
+    'Carp'             => 0,
+    'Capture::Tiny'    => 0,
+    'Config'           => 0,
+    'Cwd'              => 0,
+    'Exporter'         => 0,
+    'File::Basename'   => 0,
+    'File::Spec'       => 0,
+    'File::Temp'       => 0,
+    'Text::ParseWords' => 0,
 );
 my %CONFIGURE_DEPS = ( 'ExtUtils::MakeMaker' => 0 );
 my %BUILD_DEPS = ();
 
-my %TEST_DEPS = ( 'Test::More' => 0.90 );
+my %TEST_DEPS = (
+    'Test::More'         => 0.90,
+    'ExtUtils::CBuilder' => '0.23'
+);
 $] < 5.008 and $TEST_DEPS{'IO::String'} = 0;
 
 WriteMakefile1(
@@ -61,10 +63,11 @@ WriteMakefile1(
                 requires => {%TEST_DEPS},
             },
             runtime => {
-                requires   => { %RUN_DEPS, },
+                requires   => {%RUN_DEPS},
                 recommends => {
-                    'Scalar::Util'      => '1.18',
-                    'File::Slurp::Tiny' => 0,
+                    'ExtUtils::CBuilder' => '0.280220',
+                    'File::Slurp::Tiny'  => 0,
+                    'Scalar::Util'       => '1.18',
                 },
             },
         },

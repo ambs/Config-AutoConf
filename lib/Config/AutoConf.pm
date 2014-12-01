@@ -9,8 +9,6 @@ our @EXPORT = ( '$LIBEXT', '$EXEEXT' );
 
 use constant QUOTE => do { $^O eq "MSWin32" ? q["] : q['] };
 
-use ExtUtils::CBuilder;
-
 use Config;
 use Carp qw/croak/;
 
@@ -151,7 +149,7 @@ sub new
         lang           => "C",
         lang_stack     => [],
         lang_supported => {
-            "C" => "ExtUtils::CBuilder",
+            "C" => $class->can("check_prog_cc"),
         },
         cache                  => {},
         defines                => {},
@@ -553,7 +551,22 @@ This function checks if you have a runable C compiler.
 
 sub check_prog_cc
 {
-    ExtUtils::CBuilder->new( quiet => 1 )->have_compiler;
+    my $self = shift;
+    my $cache_name = $self->_cache_name( "prog", "CC" );
+
+    $self->check_cached(
+        $cache_name,
+        "for cc",
+        sub {
+            $self->{lang_supported}->{C} = undef;
+            eval "use ExtUtils::CBuilder;";
+            $@ and return;
+            my $cb = ExtUtils::CBuilder->new( quiet => 1 );
+            $cb->have_compiler or return;
+            $self->{lang_supported}->{C} = "ExtUtils::CBuilder";
+            $cb->{config}->{cc};
+        }
+    );
 }
 
 =head2 check_cc
@@ -3306,6 +3319,8 @@ sub _get_instance
 sub _get_builder
 {
     my $self = $_[0]->_get_instance();
+
+    ref $self->{lang_supported}->{ $self->{lang} } eq "CODE" and $self->{lang_supported}->{ $self->{lang} }->($self);
     defined( $self->{lang_supported}->{ $self->{lang} } ) or croak( "Unsupported compile language \"" . $self->{lang} . "\"" );
 
     my $builder = $self->{lang_supported}->{ $self->{lang} }->new();
@@ -3336,6 +3351,7 @@ sub _set_language
       and !defined( $self->{lang_supported}->{$lang} )
       and $self->{lang_supported}->{$lang} = $impl;
 
+    ref $self->{lang_supported}->{$lang} eq "CODE" and $self->{lang_supported}->{$lang}->($self);
     defined( $self->{lang_supported}->{$lang} ) or croak("Unsupported language \"$lang\"");
 
     defined( $self->{extra_compile_flags}->{$lang} ) or $self->{extra_compile_flags}->{$lang} = [];
