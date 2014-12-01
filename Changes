@@ -1,5 +1,15 @@
 Revision history for Config-AutoConf
 
+0.306_001	2014-12-01
+	- indent source as requested via issue#4 by Dave Rolsky
+	- consolidate check_... function on_*_true/false parameters
+	  (Thanks to Peter Rabbitson for being sounding board)
+	- introduce more Perlish tests whether XS build is sane:
+	  check_produce_xs_build, check_produce_loadable_xs_build
+	  (Thanks to Peter Rabbitson for being sounding board)
+	- extensive refactoring with some API modifcations (warned
+	  users via mail and issue#5)
+
 0.305	2014-06-12
 	- skip compiler based tests when compiler seems weird
 	- add check_sane_xs composition as discussed on cpan-workers@
