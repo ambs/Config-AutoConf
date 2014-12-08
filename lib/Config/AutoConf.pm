@@ -92,7 +92,8 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
 
 =cut
 
-our $VERSION = '0.306_001';
+our $VERSION = '0.306_002';
+$VERSION = eval $VERSION;
 
 =head1 ABSTRACT
 
@@ -2706,8 +2707,12 @@ sub _check_link_perlapi
     my @save_libs             = @{ $self->{extra_libs} };
     my @save_extra_link_flags = @{ $self->{extra_link_flags} };
 
+    my $libperl = $Config{libperl};
+    $libperl =~ s/^lib//;
+    $libperl =~ s/\.[^\.]*$//;
+
     push @{ $self->{extra_link_flags} }, "-L" . File::Spec->catdir( $Config{installarchlib}, "CORE" );
-    push @{ $self->{extra_libs} }, "perl";
+    push @{ $self->{extra_libs} }, "$libperl";
     if ( $Config{perllibs} )
     {
         foreach my $perllib ( split( " ", $Config{perllibs} ) )
@@ -2719,8 +2724,8 @@ sub _check_link_perlapi
 
     my $have_libperl = $self->link_if_else($conftest);
 
-    $self->{extra_libs}       = [@save_libs];
-    $self->{extra_link_flags} = [@save_extra_link_flags];
+    $have_libperl or $self->{extra_libs}       = [@save_libs];
+    $have_libperl or $self->{extra_link_flags} = [@save_extra_link_flags];
 
     $have_libperl;
 }
