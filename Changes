@@ -1,5 +1,9 @@
 Revision history for Config-AutoConf
 
+0.306_002	2014-12-08
+	- fix perl_api_link test for broken environments of some windows
+	  testers
+
 0.306_001	2014-12-01
 	- indent source as requested via issue#4 by Dave Rolsky
 	- consolidate check_... function on_*_true/false parameters
