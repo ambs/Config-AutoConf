@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.307	2014-12-14
+    - no Changes since 0.306_002
+
 0.306_002	2014-12-08
 	- fix perl_api_link test for broken environments of some windows
 	  testers
