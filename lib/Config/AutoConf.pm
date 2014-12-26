@@ -3247,7 +3247,7 @@ sub check_produce_xs_build
     scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance;
     $self->check_pureperl_required() and return _on_return_callback_helper( 0, $options, "action_on_false" );
-    $self->check_valid_compilers( $_[0] || [qw(C)] ) or return _on_return_callback_helper( 0, $options, "action_on_false" );
+    eval { $self->check_valid_compilers( $_[0] || [qw(C)] ) } or return _on_return_callback_helper( 0, $options, "action_on_false" );
     # XXX necessary check for $Config{useshrlib}? (need to dicuss with eg. TuX, 99% likely return 0)
     $self->check_compile_perlapi_or_die();
 
