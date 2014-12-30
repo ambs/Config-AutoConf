@@ -3331,12 +3331,12 @@ sub _get_builder
     my $builder = $self->{lang_supported}->{ $self->{lang} }->new();
 
     ## XXX - Temporarily. Will try to send upstream
-    if ( $self->{lang} eq "C" )
-    {
-        $builder->{config}{ccflags} =~ s/-arch \S+//g;
-        $builder->{config}{lddlflags} =~ s/-arch \S+//g;
-        $builder->{config}{ldflags} =~ s/-arch \S+//g;
-    }
+    #if ( $self->{lang} eq "C" )
+    #{
+    #    $builder->{config}{ccflags} =~ s/-arch \S+//g;
+    #    $builder->{config}{lddlflags} =~ s/-arch \S+//g;
+    #    $builder->{config}{ldflags} =~ s/-arch \S+//g;
+    #}
     $builder;
 }
 

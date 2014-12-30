@@ -1,11 +1,12 @@
 Revision history for Config-AutoConf
 
+	- Remove the -arch removal for Mac OS X.
+
 0.308	2014-12-26
-    - deal with "no C compiler available" properly
-      (see RT#101121)
+	- deal with "no C compiler available" properly (see RT#101121)
 
 0.307	2014-12-14
-    - no Changes since 0.306_002
+	- no Changes since 0.306_002
 
 0.306_002	2014-12-08
 	- fix perl_api_link test for broken environments of some windows
