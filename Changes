@@ -1,5 +1,6 @@
 Revision history for Config-AutoConf
 
+0.309	2014-12-31
 	- Remove the -arch removal for Mac OS X.
 
 0.308	2014-12-26
