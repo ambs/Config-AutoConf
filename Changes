@@ -1,5 +1,12 @@
 Revision history for Config-AutoConf
 
+0.310	2015-02-19
+	- Fix some typographical errors (by Peter Pentchev <roam@ringlet.net>)
+	- bump copyright timestamps
+	- add ribasushi to acknowledgements
+	- improve/correct meta information
+	- improve bundled POD
+
 0.309	2014-12-31
 	- Remove the -arch removal for Mac OS X.
 
