@@ -3669,7 +3669,7 @@ Ken Williams for ExtUtils::CBuilder
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2004-2011 by the Authors
+Copyright 2004-2015 by the Authors
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
