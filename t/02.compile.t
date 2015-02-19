@@ -77,7 +77,7 @@ ok $ac->check_members( [ "struct hv.sv_any", "struct STRUCT_SV.sv_any" ], { prol
 ok $ac->check_alignof_type( "I32",          { prologue => $include_perl } ), "Align of I32";
 ok $ac->check_alignof_type( "SV.sv_refcnt", { prologue => $include_perl } ), "Align of SV.sv_refcnt";
 ok $ac->check_alignof_types( [ "I32", "U32", "AV", "HV *", "SV.sv_refcnt" ], { prologue => $include_perl } ),
-  "Could determined sizes for I32, U32, AV, HV *, SV.sv_refcnt";
+  "Could determine the sizes of I32, U32, AV, HV *, SV.sv_refcnt";
 
 Config::AutoConf->write_config_h();
 ok( -f "config.h", "default config.h created" );
