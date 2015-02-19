@@ -3667,6 +3667,8 @@ Michael Schwern for kind MacOS X help.
 
 Ken Williams for ExtUtils::CBuilder
 
+Peter Rabbitson for help on refactoring and making the API more Perl'ish
+
 =head1 COPYRIGHT & LICENSE
 
 Copyright 2004-2015 by the Authors
