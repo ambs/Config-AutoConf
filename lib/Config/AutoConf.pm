@@ -119,6 +119,21 @@ macros do. To detect a command, to detect a library, etc.
 
     Config::AutoConf->check_file("/etc/passwd"); # -f && -r
 
+=head1 DESCRIPTION
+
+Config::AutoConf is intended to provide the same opportunities to Perl
+developers as L<GNU Autoconf|http://www.gnu.org/software/autoconf/>
+does for Shell developers.
+
+As Perl is the second most deployed language (mind: every Unix comes
+with Perl, several mini-computers have Perl and even lot's of Windows
+machines run Perl software - which requires deployed Perl there, too),
+this gives wider support than Shell based probes.
+
+The API is leant against GNU Autoconf, but we try to make the API
+(especially optional arguments) more Perl'ish than m4 abilities allow
+to the original.
+
 =head1 FUNCTIONS
 
 =cut
@@ -3657,9 +3672,38 @@ addressed later, or by request.
 A lot. Portability is a pain. B<<Patches welcome!>>.
 
 Please report any bugs or feature requests to
-C<bug-extutils-autoconf@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org>.  I will be notified, and then you'll automatically
-be notified of progress on your bug as I make changes.
+C<bug-Config-AutoConf@rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Config-AutoConf>.  We will
+be notified, and then you'll automatically be notified of progress
+on your bug as we make changes.
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Config::AutoConf
+
+You can also look for information at:
+
+=over 4
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Config-AutoConf>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/l/Config-AutoConf>
+
+=item * MetaCPAN
+
+L<https://metacpan.org/release/Config-AutoConf>
+
+=item * Git Repository
+
+L<https://github.com/ambs/Config-AutoConf>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
