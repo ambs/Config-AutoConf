@@ -31,26 +31,29 @@ WriteMakefile1(
         resources   => {
             homepage   => 'https://metacpan.org/release/Config-AutoConf',
             repository => {
-                url  => 'git@github.com:ambs/Config-AutoConf.git',
+                url  => 'https://github.com:ambs/Config-AutoConf.git',
                 web  => 'https://github.com/ambs/Config-AutoConf',
                 type => 'git',
             },
             license    => 'http://dev.perl.org/licenses/',
             bugtracker => {
                 web    => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Config-AutoConf',
-                mailto => 'bug-config-autoconf@rt.cpan.org',
+                mailto => 'bug-Config-AutoConf@rt.cpan.org',
             },
+            x_IRC         => "irc://irc.perl.org/#toolchain",
+            x_MailingList => "mailto:cpan-workers\@perl.org'",
         },
         prereqs => {
             develop => {
                 requires => {
-                    'File::Copy'                          => 0,
                     'Test::CPAN::Changes'                 => 0,
                     'Test::CheckManifest'                 => 0,
+                    'Module::CPANTS::Analyse'             => '0.96',
                     'Test::Kwalitee'                      => 0,
                     'Test::Pod'                           => 0,
                     'Test::Pod::Coverage'                 => 0,
                     'Test::Pod::Spelling::CommonMistakes' => 0,
+                    'Test::Spelling'                      => 0,
                 },
             },
             configure => {
@@ -92,13 +95,15 @@ sub WriteMakefile1
     die "License not specified"    if ( !exists( $params{LICENSE} ) );
     $params{TEST_REQUIRES}
       and $eumm_version < 6.6303
-      and $params{BUILD_REQUIRES} =
-      $params{BUILD_REQUIRES} ? { %{ $params{BUILD_REQUIRES} }, %{ $params{TEST_REQUIRES} } } : delete $params{TEST_REQUIRES};
+      and $params{BUILD_REQUIRES} = { %{ $params{BUILD_REQUIRES} || {} }, %{ delete $params{TEST_REQUIRES} } };
     #EUMM 6.5502 has problems with BUILD_REQUIRES
     $params{BUILD_REQUIRES}
       and $eumm_version < 6.5503
       and $params{PREREQ_PM} = { %{ $params{PREREQ_PM} || {} }, %{ delete $params{BUILD_REQUIRES} } };
-    $params{AUTHOR} = join( ", ", @{ $params{AUTHOR} } ) if ( $eumm_version < 6.58 and "ARRAY" eq ref $params{AUTHOR} );
+    ref $params{AUTHOR}
+      and "ARRAY" eq ref $params{AUTHOR}
+      and $eumm_version < 6.5702
+      and $params{AUTHOR} = join( ", ", @{ $params{AUTHOR} } );
     delete $params{CONFIGURE_REQUIRES}    if ( $eumm_version < 6.52 );
     delete $params{MIN_PERL_VERSION}      if ( $eumm_version < 6.48 );
     delete $params{META_MERGE}            if ( $eumm_version < 6.46 );
