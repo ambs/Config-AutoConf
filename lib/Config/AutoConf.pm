@@ -130,7 +130,7 @@ with Perl, several mini-computers have Perl and even lot's of Windows
 machines run Perl software - which requires deployed Perl there, too),
 this gives wider support than Shell based probes.
 
-The API is leant against GNU Autoconf, but we try to make the API
+The API is leaned against GNU Autoconf, but we try to make the API
 (especially optional arguments) more Perl'ish than m4 abilities allow
 to the original.
 
@@ -561,7 +561,7 @@ sub check_prog_pkg_config
 
 =head2 check_prog_cc
 
-This function checks if you have a runable C compiler.
+Determine a C compiler to use. Currently the probe is delegated to L<ExtUtils::CBuilder>.
 
 =cut
 
@@ -2379,7 +2379,7 @@ when each header can be used -- otherwise false.
 If the very last parameter contains a hash reference, C<CODE> references
 to I<action_on_true> or I<action_on_false> are executed, respectively.
 Each of existing key/value pairs using I<prologue>, I<action_on_cache_true>
-or I<action_on_cache_false> as key are passed throuh to each call of
+or I<action_on_cache_false> as key are passed-through to each call of
 L</check_header>.
 Given callbacks for I<action_on_header_true> or I<action_on_header_false> are
 called for each symbol checked using L</check_header> receiving the symbol as
@@ -2524,7 +2524,7 @@ to I<action_on_true> or I<action_on_false> are executed, respectively.
 Each of existing key/value pairs using I<prologue>, I<action_on_header_true>
 (as I<action_on_true> having the name of the tested header as first argument)
 or I<action_on_header_false> (as I<action_on_false> having the name of the
-tested header as first argument) as key are passed throuh to each call of
+tested header as first argument) as key are passed-through to each call of
 L</_check_header>.
 Given callbacks for I<action_on_cache_true> or I<action_on_cache_false> are
 passed to the call of L</check_cached>.
@@ -2975,8 +2975,8 @@ I<action_on_func_false> (as I<action_on_false> having the name of the tested
 functions as first argument), I<action_on_func_lib_true> (as
 I<action_on_lib_true> having the name of the tested functions as first
 argument), I<action_on_func_lib_false> (as I<action_on_lib_false> having
-the name of the tested functions as first argument) as key are passed
-throuh to each call of L</search_libs>.
+the name of the tested functions as first argument) as key are passed-
+through to each call of L</search_libs>.
 Given callbacks for I<action_on_lib_true>, I<action_on_lib_false>,
 I<action_on_cache_true> or I<action_on_cache_false> are passed to the
 call of L</search_libs>.
