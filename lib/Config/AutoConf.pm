@@ -2133,6 +2133,8 @@ which are used prior to the aggregate under test.
     }
   );
 
+This function will return a true value (1) if the member is found.
+
 If I<aggregate> aggregate has I<member> member, preprocessor
 macro HAVE_I<aggregate>_I<MEMBER> (in all capitals, with spaces
 and dots replaced by underscores) is defined.
@@ -2162,7 +2164,7 @@ sub check_member
     my $type = $1;
     $member = $2;
 
-    my $cache_name = $self->_cache_type_name( "member", $type );
+    my $cache_name = $self->_cache_type_name( "$type.$member" );
     my $check_sub = sub {
 
         my $body = <<ACEOF;
@@ -2180,9 +2182,9 @@ ACEOF
             }
         );
         $self->define_var(
-            _have_member_define_name($member),
+            _have_member_define_name("$type.$member"),
             $have_member ? $have_member : undef,
-            "defined when $member is available"
+            "defined when $type.$member is available"
         );
         $have_member;
     };
@@ -2201,6 +2203,8 @@ ACEOF
 =head2 check_members( members, \%options? )
 
 For each member L<check_member> is called to check for member of aggregate.
+
+This function will return a true value (1) if at least one member is found.
 
 If the very last parameter contains a hash reference, C<CODE> references
 to I<action_on_true> or I<action_on_false> are executed, respectively.
@@ -2227,10 +2231,10 @@ sub check_members
     defined $options->{action_on_cache_true}  and $pass_options{action_on_cache_true}  = $options->{action_on_cache_true};
     defined $options->{action_on_cache_false} and $pass_options{action_on_cache_false} = $options->{action_on_cache_false};
 
-    my $have_members = 1;
+    my $have_members = 0;
     foreach my $member (@$members)
     {
-        $have_members &= !!(
+         $have_members |= (
             $self->check_member(
                 $member,
                 {
