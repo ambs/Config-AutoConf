@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.311	2015-03-xx
+	- fix check_member(s) - patch by jddurand
+
 0.310	2015-02-20
 	- Fix some typographical errors (by Peter Pentchev <roam@ringlet.net>)
 	- bump copyright timestamps
