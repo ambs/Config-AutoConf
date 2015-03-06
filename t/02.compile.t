@@ -79,6 +79,15 @@ ok $ac->check_alignof_type( "SV.sv_refcnt", { prologue => $include_perl } ), "Al
 ok $ac->check_alignof_types( [ "I32", "U32", "AV", "HV *", "SV.sv_refcnt" ], { prologue => $include_perl } ),
   "Could determine the sizes of I32, U32, AV, HV *, SV.sv_refcnt";
 
+#
+# Let's take REGEXP structure members as of perlreapi to test check_members
+#
+my @members = qw/jdd jdd2 engine mother_re extflags minlen minlenret gofs substrs nparens intflags pprivate lastparen lastcloseparen swap offs subbeg saved_copy sublen suboffset subcoffset prelen precomp wrapped wraplen seen_evals paren_names refcnt/;
+
+ok( $ac->check_members([ map {"struct regexp.$_"} @members], { prologue => "#include \"EXTERN.h\"
+#include \"perl.h\"
+#include \"XSUB.h\"" }), "Check struct regexp" );
+
 Config::AutoConf->write_config_h();
 ok( -f "config.h", "default config.h created" );
 my $fsize;
