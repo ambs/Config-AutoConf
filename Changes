@@ -1,6 +1,6 @@
 Revision history for Config-AutoConf
 
-0.311	2015-03-xx
+0.311	2015-03-17
 	- fix check_member(s) - patch by jddurand
 
 0.310	2015-02-20
