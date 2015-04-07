@@ -134,7 +134,7 @@ The API is leaned against GNU Autoconf, but we try to make the API
 (especially optional arguments) more Perl'ish than m4 abilities allow
 to the original.
 
-=head1 FUNCTIONS
+=head1 CONSTRUCTOR
 
 =cut
 
@@ -183,6 +183,8 @@ sub new
     );
     bless( \%instance, $class );
 }
+
+=head1 METHODS
 
 =head2 check_file
 
