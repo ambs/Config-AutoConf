@@ -6,6 +6,7 @@ install:
   - mymeta-requires --runtime --build --test --configure --develop --recommends --suggests | cpanm
 language: perl
 perl:
+  - "5.22"
   - "5.20-extras"
   - "5.20"
   - "5.18-extras"
