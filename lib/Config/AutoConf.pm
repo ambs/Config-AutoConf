@@ -1100,6 +1100,7 @@ sub compile_if_else
     };
 
     unlink $filename;
+    $obj_file and !-f $obj_file and undef $obj_file;
     unlink $obj_file if $obj_file;
 
     if ( $exception || !$obj_file )
@@ -1167,6 +1168,8 @@ sub link_if_else
         $exception = $@;
     };
 
+    $obj_file and !-f $obj_file and undef $obj_file;
+
     if ( $exception || !$obj_file )
     {
         $self->_add_log_lines( "compile stage failed" . ( $exception ? " - " . $exception : "" ) );
@@ -1198,6 +1201,9 @@ sub link_if_else
 
         $exception = $@;
     };
+
+    $exe_file and !-f $exe_file and undef $exe_file;
+
     unlink $filename;
     unlink $obj_file if $obj_file;
     unlink $exe_file if $exe_file;
