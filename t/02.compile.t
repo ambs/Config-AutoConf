@@ -73,6 +73,20 @@ ok $ac->check_member( "struct av.sv_any", { prologue => $include_perl } ), "have
 ok $ac->check_members( [ "struct hv.sv_any", "struct STRUCT_SV.sv_any" ], { prologue => $include_perl } ),
   "have struct hv.sv_any and struct STRUCT_SV.sv_any members";
 
+my $struct_in_struct_prlg = <<EOP;
+struct S1 {
+    int i;
+    int j;
+};
+
+struct S2 {
+    struct S2 *next;
+    struct S1 s1;
+};
+EOP
+
+ok $ac->check_member( "struct S2.s1", { prologue => $struct_in_struct_prlg } ), "have struct S2.s1 member";
+
 # check aligning
 ok $ac->check_alignof_type( "I32",          { prologue => $include_perl } ), "Align of I32";
 ok $ac->check_alignof_type( "SV.sv_refcnt", { prologue => $include_perl } ), "Align of SV.sv_refcnt";

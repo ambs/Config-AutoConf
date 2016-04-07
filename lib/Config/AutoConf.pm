@@ -2175,14 +2175,28 @@ sub check_member
     return 0;
 ACEOF
         my $conftest = $self->lang_build_program( $options->{prologue}, $body );
+        my $have_member = $self->compile_if_else( $conftest );
 
-        my $have_member = $self->compile_if_else(
-            $conftest,
-            {
-                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
-                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
-            }
-        );
+        unless ( $have_member )
+        {
+            $body = <<ACEOF;
+  static $type check_aggr;
+  if( sizeof check_aggr.$member )
+    return 0;
+ACEOF
+            $conftest = $self->lang_build_program( $options->{prologue}, $body );
+            $have_member = $self->compile_if_else( $conftest );
+        }
+
+        $have_member
+          and $options->{action_on_true}
+          and ref $options->{action_on_true} eq "CODE"
+          and $options->{action_on_true}->();
+
+        $options->{action_on_false}
+          and ref $options->{action_on_false} eq "CODE"
+          and $options->{action_on_false}->() unless $have_member;
+
         $self->define_var(
             _have_member_define_name("$type.$member"),
             $have_member ? $have_member : undef,
