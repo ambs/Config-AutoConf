@@ -3248,7 +3248,7 @@ sub _check_pureperl_required
 
 =head2 check_pureperl_required
 
-This check method proves whether a pureperl build is wanted or not by
+This check method proves whether a pure perl build is wanted or not by
 cached-checking C<< $self->_check_pureperl_required >>.
 
 =cut
@@ -3269,7 +3269,7 @@ following checks in given order:
 
 =item *
 
-check pureperl environment variables (L</check_pureperl_required>) or
+check pure perl environment variables (L</check_pureperl_required>) or
 command line arguments and return false when pure perl is requested
 
 =item *
