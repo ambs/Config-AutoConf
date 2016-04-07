@@ -1,5 +1,14 @@
 Revision history for Config-AutoConf
 
+0.312_001	2016-04-07
+	- fix "check_member" test (RT#113271)
+	- update Copyright notice
+	- add license files
+	- improve compile_if_else/link_if_else by proving whether object
+	  or binary file (compile result) exists
+	- fix some typos and other POD quirks
+	- Update README.md from updated POD
+
 0.311	2015-03-17
 	- fix check_member(s) - patch by jddurand
 
