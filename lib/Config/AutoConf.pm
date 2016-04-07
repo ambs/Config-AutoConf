@@ -3735,7 +3735,7 @@ Peter Rabbitson for help on refactoring and making the API more Perl'ish
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2004-2015 by the Authors
+Copyright 2004-2016 by the Authors
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
