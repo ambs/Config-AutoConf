@@ -453,7 +453,11 @@ sub check_prog_lex
             "ac_cv_prog_lex_root",
             "for lex output file root",
             sub {
-                my ( $fh, $filename ) = tempfile( "testXXXXXX", SUFFIX => '.l' );
+                my ( $fh, $filename ) = tempfile(
+                    "testXXXXXX",
+                    SUFFIX => '.l',
+                    UNLINK => 0
+                );
                 my $src = <<'EOLEX';
 %%
 a { ECHO; }
@@ -1075,7 +1079,7 @@ sub compile_if_else
     my ( $fh, $filename ) = tempfile(
         "testXXXXXX",
         SUFFIX => '.c',
-        , UNLINK => 0
+        UNLINK => 0
     );
 
     print {$fh} $src;
@@ -1140,7 +1144,11 @@ sub link_if_else
 
     my $builder = $self->_get_builder();
 
-    my ( $fh, $filename ) = tempfile( "testXXXXXX", SUFFIX => '.c' );
+    my ( $fh, $filename ) = tempfile(
+        "testXXXXXX",
+        SUFFIX => '.c',
+        UNLINK => 0
+    );
 
     print {$fh} $src;
     close $fh;
@@ -2166,8 +2174,8 @@ sub check_member
     my $type = $1;
     $member = $2;
 
-    my $cache_name = $self->_cache_type_name( "$type.$member" );
-    my $check_sub = sub {
+    my $cache_name = $self->_cache_type_name("$type.$member");
+    my $check_sub  = sub {
 
         my $body = <<ACEOF;
   static $type check_aggr;
@@ -2175,9 +2183,9 @@ sub check_member
     return 0;
 ACEOF
         my $conftest = $self->lang_build_program( $options->{prologue}, $body );
-        my $have_member = $self->compile_if_else( $conftest );
+        my $have_member = $self->compile_if_else($conftest);
 
-        unless ( $have_member )
+        unless ($have_member)
         {
             $body = <<ACEOF;
   static $type check_aggr;
@@ -2185,17 +2193,18 @@ ACEOF
     return 0;
 ACEOF
             $conftest = $self->lang_build_program( $options->{prologue}, $body );
-            $have_member = $self->compile_if_else( $conftest );
+            $have_member = $self->compile_if_else($conftest);
         }
 
-        $have_member
+              $have_member
           and $options->{action_on_true}
           and ref $options->{action_on_true} eq "CODE"
           and $options->{action_on_true}->();
 
         $options->{action_on_false}
           and ref $options->{action_on_false} eq "CODE"
-          and $options->{action_on_false}->() unless $have_member;
+          and $options->{action_on_false}->()
+          unless $have_member;
 
         $self->define_var(
             _have_member_define_name("$type.$member"),
@@ -2250,7 +2259,7 @@ sub check_members
     my $have_members = 0;
     foreach my $member (@$members)
     {
-         $have_members |= (
+        $have_members |= (
             $self->check_member(
                 $member,
                 {
@@ -3282,7 +3291,8 @@ sub check_produce_xs_build
     scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance;
     $self->check_pureperl_required() and return _on_return_callback_helper( 0, $options, "action_on_false" );
-    eval { $self->check_valid_compilers( $_[0] || [qw(C)] ) } or return _on_return_callback_helper( 0, $options, "action_on_false" );
+    eval { $self->check_valid_compilers( $_[0] || [qw(C)] ) }
+      or return _on_return_callback_helper( 0, $options, "action_on_false" );
     # XXX necessary check for $Config{useshrlib}? (need to dicuss with eg. TuX, 99% likely return 0)
     $self->check_compile_perlapi_or_die();
 
