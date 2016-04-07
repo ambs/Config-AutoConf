@@ -3729,7 +3729,7 @@ L<http://annocpan.org/dist/Config-AutoConf>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/l/Config-AutoConf>
+L<http://cpanratings.perl.org/dist/Config-AutoConf>
 
 =item * MetaCPAN
 
