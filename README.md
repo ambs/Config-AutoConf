@@ -37,17 +37,19 @@ with Perl, several mini-computers have Perl and even lot's of Windows
 machines run Perl software - which requires deployed Perl there, too),
 this gives wider support than Shell based probes.
 
-The API is leant against GNU Autoconf, but we try to make the API
+The API is leaned against GNU Autoconf, but we try to make the API
 (especially optional arguments) more Perl'ish than m4 abilities allow
 to the original.
 
-# FUNCTIONS
+# CONSTRUCTOR
 
 ## new
 
 This function instantiates a new instance of Config::AutoConf, eg. to
 configure child components. The constructor adds also values set via
 environment variable `PERL5_AUTOCONF_OPTS`.
+
+# METHODS
 
 ## check\_file
 
@@ -157,11 +159,11 @@ Checks for `pkg-config` program. No additional tests are made for it ...
 
 ## check\_prog\_cc
 
-This function checks if you have a runable C compiler.
+Determine a C compiler to use. Currently the probe is delegated to [ExtUtils::CBuilder](https://metacpan.org/pod/ExtUtils::CBuilder).
 
 ## check\_cc
 
-(Deprecated) Old name of ["check_prog_cc"](#check_prog_cc).
+(Deprecated) Old name of ["check\_prog\_cc"](#check_prog_cc).
 
 ## check\_valid\_compiler
 
@@ -313,12 +315,12 @@ to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 
 ## check\_cached( $cache-key, $check-title, \\&check-call, \\%options? )
 
-Retrieves the result of a previous ["check_cached"](#check_cached) invocation from
+Retrieves the result of a previous ["check\_cached"](#check_cached) invocation from
 `cache-key`, or (when called for the first time) populates the cache
 by invoking `\&check_call`. 
 
 If the very last parameter contains a hash reference, `CODE` references
-to _action\_on\_true_ or _action\_on\_false_ are executed on __every__ call
+to _action\_on\_true_ or _action\_on\_false_ are executed on **every** call
 to check\_cached (not just the first cache-populating invocation), respectively.
 
 ## cache\_val
@@ -342,15 +344,15 @@ variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_decls( symbols, \\%options? )
 
 For each of the symbols (with optional function argument types for C++
-overloads), run [check_decl](https://metacpan.org/pod/check_decl).
+overloads), run [check\_decl](https://metacpan.org/pod/check_decl).
 
 Contrary to GNU autoconf, this method does not declare HAVE\_DECL\_symbol
 macros for the resulting `confdefs.h`, because it differs as `check_decl`
@@ -359,12 +361,12 @@ between compiling languages.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 Given callbacks for _action\_on\_symbol\_true_ or _action\_on\_symbol\_false_ are
-called for each symbol checked using ["check_decl"](#check_decl) receiving the symbol as
+called for each symbol checked using ["check\_decl"](#check_decl) receiving the symbol as
 first argument.
 
 ## check\_func( $function, \\%options? )
@@ -376,7 +378,7 @@ ac\_cv\_func\_FUNCTION variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 If any of _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined,
-both callbacks are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or
+both callbacks are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or
 _action\_on\_false_ to `check_cached`, respectively.
 
 Returns: True if the function was found, false otherwise
@@ -390,10 +392,10 @@ function that was found.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 If any of _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined,
-both callbacks are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or
+both callbacks are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or
 _action\_on\_false_ to `check_cached`, respectively.  Given callbacks
 for _action\_on\_function\_true_ or _action\_on\_function\_false_ are called for
-each symbol checked using ["check_func"](#check_func) receiving the symbol as first
+each symbol checked using ["check\_func"](#check_func) receiving the symbol as first
 argument.
 
 ## check\_type( $symbol, \\%options? )
@@ -411,25 +413,25 @@ This method caches its result in the `ac_cv_type_`type variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_types( \\@type-list, \\%options? )
 
-For each type in _@type-list_, call [check_type](https://metacpan.org/pod/check_type) is called to check
+For each type in _@type-list_, call [check\_type](https://metacpan.org/pod/check_type) is called to check
 for type and return the accumulated result (accumulation op is binary and).
 
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 Given callbacks for _action\_on\_type\_true_ or _action\_on\_type\_false_ are
-called for each symbol checked using ["check_type"](#check_type) receiving the symbol as
+called for each symbol checked using ["check\_type"](#check_type) receiving the symbol as
 first argument.
 
 ## compute\_int( $expression, @decls?, \\%options )
@@ -442,9 +444,9 @@ the default includes are used.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_sizeof\_type( $type, \\%options? )
@@ -464,14 +466,14 @@ This method caches its result in the `ac_cv_sizeof_<set lang>`\_type variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_sizeof\_types( type, \\%options? )
 
-For each type [check_sizeof_type](https://metacpan.org/pod/check_sizeof_type) is called to check for size of type.
+For each type [check\_sizeof\_type](https://metacpan.org/pod/check_sizeof_type) is called to check for size of type.
 
 If _action-if-found_ is given, it is additionally executed when all of the
 sizes of the types could determined. If _action-if-not-found_ is given, it
@@ -480,12 +482,12 @@ is executed when one size of the types could not determined.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 Given callbacks for _action\_on\_size\_true_ or _action\_on\_size\_false_ are
-called for each symbol checked using ["check_sizeof_type"](#check_sizeof_type) receiving the
+called for each symbol checked using ["check\_sizeof\_type"](#check_sizeof_type) receiving the
 symbol as first argument.
 
 ## check\_alignof\_type( type, \\%options? )
@@ -501,14 +503,14 @@ variable name mapped to underscores.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_alignof\_types (type, \[action-if-found\], \[action-if-not-found\], \[prologue = default includes\])
 
-For each type [check_alignof_type](https://metacpan.org/pod/check_alignof_type) is called to check for align of type.
+For each type [check\_alignof\_type](https://metacpan.org/pod/check_alignof_type) is called to check for align of type.
 
 If _action-if-found_ is given, it is additionally executed when all of the
 aligns of the types could determined. If _action-if-not-found_ is given, it
@@ -517,12 +519,12 @@ is executed when one align of the types could not determined.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 Given callbacks for _action\_on\_align\_true_ or _action\_on\_align\_false_ are
-called for each symbol checked using ["check_alignof_type"](#check_alignof_type) receiving the
+called for each symbol checked using ["check\_alignof\_type"](#check_alignof_type) receiving the
 symbol as first argument.
 
 ## check\_member( member, \\%options? )
@@ -540,6 +542,8 @@ which are used prior to the aggregate under test.
       }
     );
 
+This function will return a true value (1) if the member is found.
+
 If _aggregate_ aggregate has _member_ member, preprocessor
 macro HAVE\__aggregate_\__MEMBER_ (in all capitals, with spaces
 and dots replaced by underscores) is defined.
@@ -549,24 +553,26 @@ This macro caches its result in the `ac_cv_`aggr\_member variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_members( members, \\%options? )
 
-For each member [check_member](https://metacpan.org/pod/check_member) is called to check for member of aggregate.
+For each member [check\_member](https://metacpan.org/pod/check_member) is called to check for member of aggregate.
+
+This function will return a true value (1) if at least one member is found.
 
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be favoured
-over `default includes` (represented by ["_default_includes"](#_default_includes)). If any of
+over `default includes` (represented by ["\_default\_includes"](#_default_includes)). If any of
 _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined, both callbacks
-are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 Given callbacks for _action\_on\_member\_true_ or _action\_on\_member\_false_ are
-called for each symbol checked using ["check_member"](#check_member) receiving the symbol as
+called for each symbol checked using ["check\_member"](#check_member) receiving the symbol as
 first argument.
 
 ## check\_header( $header, \\%options? )
@@ -589,7 +595,7 @@ to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 When a _prologue_ exists in the optional hash at end, it will be prepended
 to the tested header. If any of _action\_on\_cache\_true_,
 _action\_on\_cache\_false_ is defined, both callbacks are passed to
-["check_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
+["check\_cached"](#check_cached) as _action\_on\_true_ or _action\_on\_false_ to
 `check_cached`, respectively.
 
 ## check\_headers
@@ -598,7 +604,7 @@ This function uses check\_header to check if a set of include files exist
 in the system and can be included and compiled by the available compiler.
 Returns the name of the first header file found.
 
-Passes an optional \\%options hash to each ["check_header"](#check_header) call.
+Passes an optional \\%options hash to each ["check\_header"](#check_header) call.
 
 ## check\_all\_headers
 
@@ -608,10 +614,10 @@ when each header can be used -- otherwise false.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 Each of existing key/value pairs using _prologue_, _action\_on\_cache\_true_
-or _action\_on\_cache\_false_ as key are passed throuh to each call of
-["check_header"](#check_header).
+or _action\_on\_cache\_false_ as key are passed-through to each call of
+["check\_header"](#check_header).
 Given callbacks for _action\_on\_header\_true_ or _action\_on\_header\_false_ are
-called for each symbol checked using ["check_header"](#check_header) receiving the symbol as
+called for each symbol checked using ["check\_header"](#check_header) receiving the symbol as
 first argument.
 
 ## check\_stdc\_headers
@@ -623,24 +629,24 @@ stdio.h and time.h.
 
 Returns a false value if it fails.
 
-Passes an optional \\%options hash to each ["check_all_headers"](#check_all_headers) call.
+Passes an optional \\%options hash to each ["check\_all\_headers"](#check_all_headers) call.
 
 ## check\_default\_headers
 
 This function checks for some default headers, the std c89 headers and
 sys/types.h, sys/stat.h, memory.h, strings.h, inttypes.h, stdint.h and unistd.h
 
-Passes an optional \\%options hash to each ["check_all_headers"](#check_all_headers) call.
+Passes an optional \\%options hash to each ["check\_all\_headers"](#check_all_headers) call.
 
 ## check\_dirent\_header
 
 Check for the following header files. For the first one that is found and
 defines 'DIR', define the listed C preprocessor macro:
 
-    dirent.h 	HAVE_DIRENT_H
-    sys/ndir.h 	HAVE_SYS_NDIR_H
-    sys/dir.h 	HAVE_SYS_DIR_H
-    ndir.h 	HAVE_NDIR_H
+    dirent.h      HAVE_DIRENT_H
+    sys/ndir.h    HAVE_SYS_NDIR_H
+    sys/dir.h     HAVE_SYS_DIR_H
+    ndir.h        HAVE_NDIR_H
 
 The directory-library declarations in your source code should look
 something like the following:
@@ -669,7 +675,7 @@ of a directory entry name by passing a pointer to a `struct dirent` to
 the `NAMLEN` macro.
 
 This method might be obsolescent, as all current systems with directory
-libraries have `<<dirent.h>`\>. Programs supporting only newer OS
+libraries have `<<dirent.h>`>. Programs supporting only newer OS
 might not need to use this method.
 
 If the very last parameter contains a hash reference, `CODE` references
@@ -677,10 +683,10 @@ to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 Each of existing key/value pairs using _prologue_, _action\_on\_header\_true_
 (as _action\_on\_true_ having the name of the tested header as first argument)
 or _action\_on\_header\_false_ (as _action\_on\_false_ having the name of the
-tested header as first argument) as key are passed throuh to each call of
-["_check_header"](#_check_header).
+tested header as first argument) as key are passed-through to each call of
+["\_check\_header"](#_check_header).
 Given callbacks for _action\_on\_cache\_true_ or _action\_on\_cache\_false_ are
-passed to the call of ["check_cached"](#check_cached).
+passed to the call of ["check\_cached"](#check_cached).
 
 ## \_check\_perlapi\_program
 
@@ -709,7 +715,7 @@ succeed.
 
 ## check\_linkable\_xs\_so\_or\_die
 
-Dies when ["check_linkable_xs_so"](#check_linkable_xs_so) fails.
+Dies when ["check\_linkable\_xs\_so"](#check_linkable_xs_so) fails.
 
 ## check\_loadable\_xs\_so
 
@@ -719,7 +725,7 @@ succeed.
 
 ## check\_loadable\_xs\_so\_or\_die
 
-Dies when ["check_loadable_xs_so"](#check_loadable_xs_so) fails.
+Dies when ["check\_loadable\_xs\_so"](#check_loadable_xs_so) fails.
 
 ## \_check\_link\_perlapi
 
@@ -764,10 +770,10 @@ This method caches its result in the `ac_cv_lib_`lib\_func variable.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 If any of _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined,
-both callbacks are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or
+both callbacks are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or
 _action\_on\_false_ to `check_cached`, respectively.
 
-It's recommended to use [search_libs](https://metacpan.org/pod/search_libs) instead of check\_lib these days.
+It's recommended to use [search\_libs](https://metacpan.org/pod/search_libs) instead of check\_lib these days.
 
 ## search\_libs( function, search-libs, @other-libs?, \\%options? )
 
@@ -797,10 +803,10 @@ that needs to be prepended to LIBS.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 If any of _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined,
-both callbacks are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or
+both callbacks are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or
 _action\_on\_false_ to `check_cached`, respectively.  Given callbacks
 for _action\_on\_lib\_true_ or _action\_on\_lib\_false_ are called for
-each library checked using ["link_if_else"](#link_if_else) receiving the library as
+each library checked using ["link\_if\_else"](#link_if_else) receiving the library as
 first argument and all `@other_libs` subsequently.
 
 ## check\_lm( \\%options? )
@@ -817,13 +823,13 @@ _action\_on\_func\_false_ (as _action\_on\_false_ having the name of the tested
 functions as first argument), _action\_on\_func\_lib\_true_ (as
 _action\_on\_lib\_true_ having the name of the tested functions as first
 argument), _action\_on\_func\_lib\_false_ (as _action\_on\_lib\_false_ having
-the name of the tested functions as first argument) as key are passed
-throuh to each call of ["search_libs"](#search_libs).
+the name of the tested functions as first argument) as key are passed-
+through to each call of ["search\_libs"](#search_libs).
 Given callbacks for _action\_on\_lib\_true_, _action\_on\_lib\_false_,
 _action\_on\_cache\_true_ or _action\_on\_cache\_false_ are passed to the
-call of ["search_libs"](#search_libs).
+call of ["search\_libs"](#search_libs).
 
-__Note__ that _action\_on\_lib\_true_ and _action\_on\_func\_lib\_true_ or
+**Note** that _action\_on\_lib\_true_ and _action\_on\_func\_lib\_true_ or
 _action\_on\_lib\_false_ and _action\_on\_func\_lib\_false_ cannot be used
 at the same time, respectively.
 
@@ -839,8 +845,8 @@ found or not.
 If the very last parameter contains a hash reference, `CODE` references
 to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 If any of _action\_on\_cache\_true_, _action\_on\_cache\_false_ is defined,
-both callbacks are passed to ["check_cached"](#check_cached) as _action\_on\_true_ or
-_action\_on\_false_ to ["check_cached"](#check_cached), respectively.
+both callbacks are passed to ["check\_cached"](#check_cached) as _action\_on\_true_ or
+_action\_on\_false_ to ["check\_cached"](#check_cached), respectively.
 
 ## \_check\_mm\_pureperl\_build\_wanted
 
@@ -852,7 +858,7 @@ is called with _PUREPERL\_ONLY=0_.
 ## \_check\_mb\_pureperl\_build\_wanted
 
 This method proves the `_argv` attribute and (when set) the `PERL_MB_OPT`
-whether they contain _\--pureperl-only_ or not.
+whether they contain _--pureperl-only_ or not.
 
 ## \_check\_pureperl\_required
 
@@ -873,9 +879,9 @@ cached-checking `$self->_check_pureperl_required`.
 This routine checks whether XS can be produced. Therefore it does
 following checks in given order:
 
-- check pureperl environment variables (["check_pureperl_required"](#check_pureperl_required)) or
+- check pureperl environment variables (["check\_pureperl\_required"](#check_pureperl_required)) or
 command line arguments and return false when pure perl is requested
-- check whether a compiler is available (["check_valid_compilers"](#check_valid_compilers)) and
+- check whether a compiler is available (["check\_valid\_compilers"](#check_valid_compilers)) and
 return false if none found
 - check whether a test program accessing Perl API can be compiled and
 die with error if not
@@ -890,7 +896,7 @@ to _action\_on\_true_ or _action\_on\_false_ are executed, respectively.
 This routine proves whether XS should be built and it's possible to create
 a dynamic linked object which can be loaded using Perl's Dynaloader.
 
-The extension over ["check_produce_xs_build"](#check_produce_xs_build) can be avoided by adding the
+The extension over ["check\_produce\_xs\_build"](#check_produce_xs_build) can be avoided by adding the
 `notest_loadable_xs` to `$ENV{PERL5_AC_OPTS}`.
 
 If the very last parameter contains a hash reference, `CODE` references
@@ -986,7 +992,7 @@ addressed later, or by request.
 
 # BUGS
 
-A lot. Portability is a pain. __<Patches welcome!__\>.
+A lot. Portability is a pain. **<Patches welcome!**>.
 
 Please report any bugs or feature requests to
 `bug-Config-AutoConf@rt.cpan.org`, or through the web interface at
@@ -1008,7 +1014,7 @@ You can also look for information at:
 
 - CPAN Ratings
 
-    [http://cpanratings.perl.org/l/Config-AutoConf](http://cpanratings.perl.org/l/Config-AutoConf)
+    [http://cpanratings.perl.org/dist/Config-AutoConf](http://cpanratings.perl.org/dist/Config-AutoConf)
 
 - MetaCPAN
 
@@ -1028,7 +1034,7 @@ Peter Rabbitson for help on refactoring and making the API more Perl'ish
 
 # COPYRIGHT & LICENSE
 
-Copyright 2004-2015 by the Authors
+Copyright 2004-2016 by the Authors
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
