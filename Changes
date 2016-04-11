@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.313	2016-04-11
+	- release 0.312_001 without further changes
+
 0.312_001	2016-04-07
 	- fix "check_member" test (RT#113271)
 	- update Copyright notice
