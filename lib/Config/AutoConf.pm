@@ -3677,8 +3677,9 @@ sub _get_extra_linker_flags
 {
     my $self    = shift->_get_instance();
     my @libs    = @{ $self->{extra_libs} };
+    my @lib_dirs= @{ $self->{extra_lib_dirs} };
     my @ldflags = @{ $self->{extra_link_flags} };
-    join( " ", @ldflags, map { "-l$_" } @libs );
+    join(" ", @ldflags, map('-L'.$self->_sanitize_prog($_), @lib_dirs), map("-l$_", @libs));
 }
 
 =head1 AUTHOR
