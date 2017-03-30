@@ -1,5 +1,8 @@
 Revision history for Config-AutoConf
 
+0.314	2017-03-30
+	- _get_extra_linker_flags: add library dirs
+
 0.313	2016-04-11
 	- release 0.312_001 without further changes
 
