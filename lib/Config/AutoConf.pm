@@ -92,7 +92,7 @@ Config::AutoConf - A module to implement some of AutoConf macros in pure perl.
 
 =cut
 
-our $VERSION = '0.313';
+our $VERSION = '0.314';
 $VERSION = eval $VERSION;
 
 =head1 ABSTRACT
@@ -3752,7 +3752,7 @@ Peter Rabbitson for help on refactoring and making the API more Perl'ish
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2004-2016 by the Authors
+Copyright 2004-2017 by the Authors
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
