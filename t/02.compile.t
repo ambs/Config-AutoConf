@@ -52,6 +52,13 @@ SKIP:
 ok $ac->check_decl( "perl_parse(PerlInterpreter *, XSINIT_t , int , char** , char** )", { prologue => $include_perl } ),
   "perl_parse() declared";
 
+SCOPE:
+{
+    # test outside cache control
+    local $ENV{ac_cv_type_complete_useless_datatype} = 1;
+    ok $ac->check_type("complete_useless_datatype"), "External overwritten type test"; 
+}
+
 # check declared types
 ok $ac->check_type( "I32", { prologue => $include_perl } ), "I32 is valid type";
 
@@ -129,6 +136,8 @@ close($fh);
 $fh = undef;
 
 cmp_ok( $dbuf, "eq", $fbuf, "file and direct write computes equal" );
+
+like($dbuf, qr/COMPLETE_USELESS_DATATYPE/, "complete_useless_datatype in config.h even if injected");
 
 TODO:
 {

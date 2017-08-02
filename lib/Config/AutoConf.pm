@@ -924,7 +924,7 @@ _ACEOF
     return $prologue;
 }
 
-sub _lang_build_func
+sub _lang_body_func
 {
     my ( $self, $function ) = @_;
     ref $self or $self = $self->_get_instance();
@@ -948,7 +948,7 @@ sub lang_call
 
     return $self->lang_build_program(
         $self->_lang_prologue_func($prologue, $function),
-        $self->_lang_build_func($function),
+        $self->_lang_body_func($function),
     );
 }
 
@@ -1557,8 +1557,18 @@ sub check_func
         "for $function",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_func_define_name($function), $self->cache_val($cache_name), "Defined when $function is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _have_func_define_name($function), undef, "Defined when $function is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -1598,14 +1608,10 @@ sub check_funcs
     my $have_funcs = 1;
     for my $function ( @{$functions_ref} )
     {
-
         # Build the code reference to run when a function was found. This defines
         # a HAVE_FUNCTION symbol, plus runs the current $action-if-true if there is
         # one.
         $pass_options{action_on_true} = sub {
-            # XXX think about doing this always (move to check_func)
-            $self->define_var( _have_func_define_name($function), 1, "Defined when $function is available" );
-
             # Run the user-provided hook, if there is one.
             defined $options->{action_on_function_true}
               and ref $options->{action_on_function_true} eq "CODE"
@@ -1668,16 +1674,10 @@ sub check_builtin
     my $cache_name = $self->_cache_name( 'builtin', $builtin );
     # Wrap the actual check in a closure so that we can use check_cached.
     my $check_sub = sub {
-        my $persist_check_success = sub {
-            # XXX think about doing this always (move to check_func)
-            $self->define_var( _have_builtin_define_name($builtin), 1, "Defined when builtin $builtin is available" );
-            $options->{action_on_true}
-              and $options->{action_on_true}->();
-        };
         my $have_builtin = $self->link_if_else(
             $self->lang_builtin( q{}, $builtin ),
             {
-                action_on_true  => $persist_check_success,
+                ( $options->{action_on_true}  ? ( action_on_true  => $options->{action_on_true} )  : () ),
                 ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
             }
         );
@@ -1690,8 +1690,18 @@ sub check_builtin
         "for builtin $builtin",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_builtin_define_name($builtin), $self->cache_val($cache_name), "Defined when builtin $builtin is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _have_builtin_define_name($builtin), undef, "Defined when builtin $builtin is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -1754,7 +1764,6 @@ ACEOF
                 ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
             }
         );
-        $self->define_var( _have_type_define_name($type), $have_type ? $have_type : undef, "defined when $type is available" );
         $have_type;
     };
 
@@ -1763,8 +1772,18 @@ ACEOF
         "for $type",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_type_define_name($type), $self->cache_val($cache_name), "defined when $type is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _have_type_define_name($type), undef, "defined when $type is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -1920,6 +1939,15 @@ C<check_cached>, respectively.
 
 =cut
 
+sub _expr_value_define_name
+{
+    my $expr      = $_[0];
+    my $have_name = "EXPR_" . uc($expr);
+    $have_name =~ tr/*/P/;
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    $have_name;
+}
+
 sub compute_int
 {
     my $options = {};
@@ -1949,19 +1977,20 @@ sub compute_int
         "for compute result of ($expr)",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _expr_value_define_name($expr), $self->cache_val($cache_name), "defined when ($expr) could computed" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _expr_value_define_name($expr), undef, "defined when ($expr) could computed" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
-}
-
-sub _sizeof_type_define_name
-{
-    my $type      = $_[0];
-    my $have_name = "SIZEOF_" . uc($type);
-    $have_name =~ tr/*/P/;
-    $have_name =~ tr/_A-Za-z0-9/_/c;
-    $have_name;
 }
 
 =head2 check_sizeof_type( $type, \%options? )
@@ -1988,6 +2017,15 @@ C<check_cached>, respectively.
 
 =cut
 
+sub _sizeof_type_define_name
+{
+    my $type      = $_[0];
+    my $have_name = "SIZEOF_" . uc($type);
+    $have_name =~ tr/*/P/;
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    $have_name;
+}
+
 sub check_sizeof_type
 {
     my $options = {};
@@ -2009,11 +2047,6 @@ sub check_sizeof_type
         }
 
         my $typesize = $self->_compute_int_compile( "sizeof($type)", $options->{prologue}, @decls );
-        $self->define_var(
-            _sizeof_type_define_name($type),
-            $typesize ? $typesize : undef,
-            "defined when sizeof($type) is available"
-        );
 
               $typesize
           and $options->{action_on_true}
@@ -2033,8 +2066,18 @@ sub check_sizeof_type
         "for size of $type",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _sizeof_type_define_name($type), $self->cache_val($cache_name), "defined when sizeof($type) is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _sizeof_type_define_name($type), undef, "defined when sizeof($type) is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -2170,11 +2213,6 @@ sub check_alignof_type
         }
 
         my $typealign = $self->_compute_int_compile( "offsetof($struct, $memb)", $options->{prologue}, @decls );
-        $self->define_var(
-            _alignof_type_define_name($type),
-            $typealign ? $typealign : undef,
-            "defined when alignof($type) is available"
-        );
 
               $typealign
           and $options->{action_on_true}
@@ -2194,8 +2232,18 @@ sub check_alignof_type
         "for align of $type",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _alignof_type_define_name($type), $self->cache_val($cache_name), "defined when alignof($type) is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _alignof_type_define_name($type), undef, "defined when alignof($type) is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -2355,11 +2403,6 @@ ACEOF
           and $options->{action_on_false}->()
           unless $have_member;
 
-        $self->define_var(
-            _have_member_define_name("$type.$member"),
-            $have_member ? $have_member : undef,
-            "defined when $type.$member is available"
-        );
         $have_member;
     };
 
@@ -2368,8 +2411,18 @@ ACEOF
         "for $type.$member",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_member_define_name("$type.$member"), $self->cache_val($cache_name), "defined when $type.$member is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _have_member_define_name("$type.$member"), undef, "defined when $type.$member is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -2510,11 +2563,6 @@ sub check_header
                 ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
             }
         );
-        $self->define_var(
-            _have_header_define_name($header),
-            $have_header ? $have_header : undef,
-            "defined when $header is available"
-        );
 
         $have_header;
     };
@@ -2524,8 +2572,18 @@ sub check_header
         "for $header",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_header_define_name($header), $self->cache_val($cache_name), "defined when $header is available" );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var( _have_header_define_name($header), undef, "defined when $header is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -2693,8 +2751,10 @@ type C<struct dirent>, not C<struct direct>, and would access the length
 of a directory entry name by passing a pointer to a C<struct dirent> to
 the C<NAMLEN> macro.
 
+For the found header, the macro HAVE_DIRENT_IN_${header} is defined.
+
 This method might be obsolescent, as all current systems with directory
-libraries have C<<E<lt>dirent.hE<gt>>>. Programs supporting only newer OS
+libraries have C<< E<lt>dirent.hE<gt> >>. Programs supporting only newer OS
 might not need to use this method.
 
 If the very last parameter contains a hash reference, C<CODE> references
@@ -2709,6 +2769,14 @@ passed to the call of L</check_cached>.
 
 =cut
 
+sub _have_dirent_header_define_name
+{
+    my $header    = $_[0];
+    my $have_name = "HAVE_DIRENT_IN_" . uc($header);
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    return $have_name;
+}
+
 sub check_dirent_header
 {
     my $options = {};
@@ -2718,61 +2786,70 @@ sub check_dirent_header
     my %pass_options;
     defined $options->{prologue} and $pass_options{prologue} = $options->{prologue};
 
-    my $cache_name = $self->_cache_name("header_dirent");
-    my $check_sub  = sub {
-        my $have_dirent;
-        foreach my $header (qw(dirent.h sys/ndir.h sys/dir.h ndir.h))
+    my $have_dirent;
+    foreach my $header (qw(dirent.h sys/ndir.h sys/dir.h ndir.h))
+    {
+        if($self->check_header($header))
         {
-            $have_dirent = $self->_check_header(
-                $header,
-                "#include <sys/types.h>\n",
-                "if ((DIR *) 0) { return 0; }",
+            my $cache_name = $self->_cache_name("dirent", $header);
+            my $check_sub  = sub {
+                my $have_dirent;
+                $have_dirent = $self->_check_header(
+                    $header,
+                    "#include <sys/types.h>\n",
+                    "if ((DIR *) 0) { return 0; }",
+                    {
+                        %pass_options,
+                        (
+                            $options->{action_on_header_true} && "CODE" eq ref $options->{action_on_header_true}
+                            ? ( action_on_true => sub { $options->{action_on_header_true}->($header) } )
+                            : ()
+                        ),
+                        (
+                            $options->{action_on_header_false} && "CODE" eq ref $options->{action_on_header_false}
+                            ? ( action_on_false => sub { $options->{action_on_header_false}->($header) } )
+                            : ()
+                        ),
+                    }
+                );
+            };
+
+            $have_dirent = $self->check_cached(
+                $cache_name,
+                "for header defining DIR *",
+                $check_sub,
                 {
-                    %pass_options,
-                    (
-                        $options->{action_on_header_true} && "CODE" eq ref $options->{action_on_header_true}
-                        ? ( action_on_true => sub { $options->{action_on_header_true}->($header) } )
-                        : ()
-                    ),
-                    (
-                        $options->{action_on_header_false} && "CODE" eq ref $options->{action_on_header_false}
-                        ? ( action_on_false => sub { $options->{action_on_header_false}->($header) } )
-                        : ()
-                    ),
+                    action_on_true => sub {
+                        $self->define_var( _have_dirent_header_define_name($header),
+                          $self->cache_val($cache_name), "defined when $header is available" );
+                        $options->{action_on_cache_true}
+                          and ref $options->{action_on_cache_true} eq "CODE"
+                          and $options->{action_on_cache_true}->();
+                    },
+                    action_on_false => sub {
+                        $self->define_var( _have_dirent_header_define_name($header), undef, "defined when $header is available" );
+                        $options->{action_on_cache_false}
+                          and ref $options->{action_on_cache_false} eq "CODE"
+                          and $options->{action_on_cache_false}->();
+                    },
                 }
             );
-            $self->define_var(
-                _have_header_define_name($header),
-                $have_dirent ? $have_dirent : undef,
-                "defined when $header is available"
-            );
+
             $have_dirent and $have_dirent = $header and last;
         }
+    }
 
-              $have_dirent
-          and $options->{action_on_true}
-          and ref $options->{action_on_true} eq "CODE"
-          and $options->{action_on_true}->();
+          $have_dirent
+      and $options->{action_on_true}
+      and ref $options->{action_on_true} eq "CODE"
+      and $options->{action_on_true}->();
 
-        $options->{action_on_false}
-          and ref $options->{action_on_false} eq "CODE"
-          and !$have_dirent
-          and $options->{action_on_false}->();
+    $options->{action_on_false}
+      and ref $options->{action_on_false} eq "CODE"
+      and !$have_dirent
+      and $options->{action_on_false}->();
 
-        $have_dirent;
-    };
-
-    my $dirent_header = $self->check_cached(
-        $cache_name,
-        "for header defining DIR *",
-        $check_sub,
-        {
-            ( $options->{action_on_cache_true}  ? ( action_on__true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on__false => $options->{action_on_cache_false} ) : () ),
-        }
-    );
-
-    $dirent_header;
+    $have_dirent;
 }
 
 =head2 _check_perlapi_program
@@ -3010,11 +3087,6 @@ sub check_lib
         );
         $self->{extra_libs} = [@save_libs];
 
-        $have_lib
-          and $self->define_var( _have_lib_define_name($lib), $have_lib, "defined when library $lib is available" )
-          and push( @{ $self->{extra_libs} }, $lib, @other_libs );
-        $have_lib
-          or $self->define_var( _have_lib_define_name($lib), undef, "defined when library $lib is available" );
         $have_lib;
     };
 
@@ -3023,8 +3095,19 @@ sub check_lib
         "for $func in -l$lib",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
-            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+            action_on_true => sub {
+                $self->define_var( _have_lib_define_name($lib), $self->cache_val($cache_name), "defined when library $lib is available" );
+                push( @{ $self->{extra_libs} }, $lib, @other_libs );
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
+            action_on_false => sub {
+                $self->define_var(_have_lib_define_name($lib), undef, "defined when library $lib is available" );
+                $options->{action_on_cache_false}
+                  and ref $options->{action_on_cache_false} eq "CODE"
+                  and $options->{action_on_cache_false}->();
+            },
         }
     );
 }
@@ -3111,8 +3194,6 @@ sub search_libs
         }
         $self->{extra_libs} = [@save_libs];
 
-        $have_lib eq "none required" or unshift( @{ $self->{extra_libs} }, $have_lib );
-
               $have_lib
           and $options->{action_on_true}
           and ref $options->{action_on_true} eq "CODE"
@@ -3131,7 +3212,13 @@ sub search_libs
         "for library containing $func",
         $check_sub,
         {
-            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            action_on_true => sub {
+                $self->cache_val($cache_name) eq "none required" or unshift( @{ $self->{extra_libs} }, $self->cache_val($cache_name) );
+
+                $options->{action_on_cache_true}
+                  and ref $options->{action_on_cache_true} eq "CODE"
+                  and $options->{action_on_cache_true}->();
+            },
             ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
         }
     );
