@@ -952,6 +952,56 @@ sub lang_call
     );
 }
 
+sub _lang_prologue_builtin
+{
+    my ( $self, $prologue, $builtin ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    defined($prologue) or $prologue = $self->_default_includes();
+    $prologue .= <<"_ACEOF";
+#if !defined(__has_builtin)
+#undef $builtin
+/* Declare this builtin with the same prototype as __builtin_$builtin.
+  This removes a warning about conflicting types for built-in builtin $builtin */
+__typeof__(__builtin_$builtin) $builtin;
+__typeof__(__builtin_$builtin) *f = $builtin;
+#endif
+_ACEOF
+}
+
+sub _lang_body_builtin
+{
+    my ( $self, $builtin ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    my $body = <<"_ACEOF";
+#if !defined(__has_builtin)
+return f != $builtin;
+#else
+return __has_builtin($builtin);
+#endif
+_ACEOF
+    return $body;
+}
+
+=head2 lang_builtin( [prologue], builtin )
+
+Builds program which simply proves whether a builtin is known to
+language compiler.
+
+=cut
+
+sub lang_builtin
+{
+    my ( $self, $prologue, $builtin ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    return $self->lang_build_program(
+        $self->_lang_prologue_func($prologue, $builtin),
+        $self->_lang_body_builtin($builtin),
+    );
+}
+
 =head2 lang_build_bool_test (prologue, test, [@decls])
 
 Builds a static test which will fail to compile when test
@@ -1581,6 +1631,71 @@ sub check_funcs
 
     return $have_funcs;
 }
+
+=head2 check_builtin( $builtin, \%options? )
+
+This method actually tests whether I<$builtin> is a supported built-in
+known by the compiler. Either, by giving us the type of the built-in or
+by taking the value from C<__has_builtin>.  This method caches its result
+in the ac_cv_builtin_FUNCTION variable.
+
+If the very last parameter contains a hash reference, C<CODE> references
+to I<action_on_true> or I<action_on_false> are executed, respectively.
+If any of I<action_on_cache_true>, I<action_on_cache_false> is defined,
+both callbacks are passed to L</check_cached> as I<action_on_true> or
+I<action_on_false> to C<check_cached>, respectively.
+
+Returns: True if the function was found, false otherwise
+
+=cut
+
+sub _have_builtin_define_name
+{
+    my $builtin   = $_[0];
+    my $have_name = "HAVE_BUILTIN_" . uc($builtin);
+    $have_name =~ tr/_A-Za-z0-9/_/c;
+    $have_name;
+}
+
+sub check_builtin
+{
+    my ( $self, $builtin ) = @_;
+    $self = $self->_get_instance();
+    my $options = {};
+    scalar @_ > 2 and ref $_[-1] eq "HASH" and $options = pop @_;
+
+    # Build the name of the cache variable.
+    my $cache_name = $self->_cache_name( 'builtin', $builtin );
+    # Wrap the actual check in a closure so that we can use check_cached.
+    my $check_sub = sub {
+        my $persist_check_success = sub {
+            # XXX think about doing this always (move to check_func)
+            $self->define_var( _have_builtin_define_name($builtin), 1, "Defined when builtin $builtin is available" );
+            $options->{action_on_true}
+              and $options->{action_on_true}->();
+        };
+        my $have_builtin = $self->link_if_else(
+            $self->lang_builtin( q{}, $builtin ),
+            {
+                action_on_true  => $persist_check_success,
+                ( $options->{action_on_false} ? ( action_on_false => $options->{action_on_false} ) : () )
+            }
+        );
+        $have_builtin;
+    };
+
+    # Run the check and cache the results.
+    return $self->check_cached(
+        $cache_name,
+        "for builtin $builtin",
+        $check_sub,
+        {
+            ( $options->{action_on_cache_true}  ? ( action_on_true  => $options->{action_on_cache_true} )  : () ),
+            ( $options->{action_on_cache_false} ? ( action_on_false => $options->{action_on_cache_false} ) : () )
+        }
+    );
+}
+
 
 sub _have_type_define_name
 {

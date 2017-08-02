@@ -45,6 +45,13 @@ TODO:
     isnt( $where_atan, 0, "library for atan() found (or none required)" );
 }
 
+TODO:
+{
+    local $TODO = "__builtin_\$1 isn't supported overall - sane prove would need compiler detection";
+
+    ok( $ac_1->check_builtin("expect"), "__buitin_expect available" );
+}
+
 my ( $ac_3, %math_funcs );
 ok( $ac_3 = Config::AutoConf->new( logfile => "config4_2.log" ), "Instantiating Config::AutoConf for check_lm() tests" );
 $ac_3->check_lm(
