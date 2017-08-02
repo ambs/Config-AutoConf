@@ -198,7 +198,15 @@ sub check_file
 {
     my $self = shift->_get_instance();
     my $file = shift;
-    -f $file && -r $file;
+
+    my $cache_name = $self->_cache_name( "file", $file );
+    $self->check_cached(
+        $cache_name,
+        "for $file",
+        sub {
+            -f $file && -r $file;
+        }
+    );
 }
 
 =head2 check_files
