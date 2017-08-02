@@ -196,7 +196,8 @@ don't need to use a function call.
 
 sub check_file
 {
-    my ( $self, $file ) = @_;
+    my $self = shift->_get_instance();
+    my $file = shift;
     -f $file && -r $file;
 }
 
@@ -209,7 +210,7 @@ readable by the user. Returns a boolean.
 
 sub check_files
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
 
     for (@_)
     {
@@ -243,7 +244,7 @@ to I<action_on_true> or I<action_on_false> are executed, respectively.
 
 sub check_prog
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
     # sanitize ac_prog
     my $ac_prog = _sanitize( shift @_ );
 
@@ -292,7 +293,7 @@ and second argument to the I<action_on_true> callback.
 
 sub check_progs
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
 
     my $options = {};
     scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
@@ -324,7 +325,8 @@ sub check_progs
 
 sub _append_prog_args
 {
-    my ( $self, $prog ) = @_;
+    my $self = shift->_get_instance();
+    my $prog = shift;
     join( " ", $self->_sanitize_prog($prog), @_ );
 }
 
@@ -343,7 +345,7 @@ Returns the full path, if found.
 
 sub check_prog_yacc
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
 
     # my ($self, $cache_name, $message, $check_sub) = @_;
 
@@ -378,7 +380,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_awk
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
     my $cache_name = $self->_cache_name( "prog", "AWK" );
     $self->check_cached( $cache_name, "for awk", sub { $ENV{AWK} || $self->check_progs(qw/gawk mawk nawk awk/) } );
 }
@@ -398,7 +400,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_egrep
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
 
     my $cache_name = $self->_cache_name( "prog", "EGREP" );
     $self->check_cached(
@@ -547,7 +549,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_sed
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
     my $cache_name = $self->_cache_name( "prog", "SED" );
     $self->check_cached( $cache_name, "for sed", sub { $ENV{SED} || $self->check_progs(qw/gsed sed/) } );
 }
@@ -573,7 +575,7 @@ Determine a C compiler to use. Currently the probe is delegated to L<ExtUtils::C
 
 sub check_prog_cc
 {
-    my $self = shift;
+    my $self = shift->_get_instance();
     my $cache_name = $self->_cache_name( "prog", "CC" );
 
     $self->check_cached(
