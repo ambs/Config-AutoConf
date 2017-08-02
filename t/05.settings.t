@@ -24,10 +24,10 @@ my $pkg_config = Config::AutoConf->check_prog_pkg_config;
 SKIP:
 {
     $pkg_config or skip "No pkg-config", 1;
-    local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir( dirname( abs_path($0) ), "testdata" );
-    my $ac = Config::AutoConf->new( logfile => "config5.log" );
+    local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir(dirname(abs_path($0)), "testdata");
+    my $ac = Config::AutoConf->new(logfile => "config5.log");
     my $foo_flags = $ac->pkg_config_package_flags("foo");
-    is( $foo_flags, "-I/base/path/include/foo-0 -L/base/path/lib/foo -lfoo", "pkg-config flags for 'foo'" );
+    is($foo_flags, "-I/base/path/include/foo-0 -L/base/path/lib/foo -lfoo", "pkg-config flags for 'foo'");
 }
 
 SCOPE:
@@ -40,9 +40,9 @@ SCOPE:
         logfile_mode => ">>"
     );
     my $bar_flags = $ac->pkg_config_package_flags("bar>2");
-    is( $bar_flags, "-Ibar -lbar", "pkg-config flags for 'bar>2'" );
+    is($bar_flags, "-Ibar -lbar", "pkg-config flags for 'bar>2'");
     my $cache_name = $ac->_cache_name(qw/pkg bar/);
-    ok( $ac->{cache}->{$cache_name}, "cache entry for 'bar>2' computed correctly" );
+    ok($ac->{cache}->{$cache_name}, "cache entry for 'bar>2' computed correctly");
 }
 
 SCOPE:
@@ -53,7 +53,7 @@ SCOPE:
         logfile      => "config6.log",
         logfile_mode => ">>"
     );
-    ok( !$ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=0\" Makefile.PL" );
+    ok(!$ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=0\" Makefile.PL");
 }
 
 SCOPE:
@@ -64,7 +64,7 @@ SCOPE:
         logfile      => "config6.log",
         logfile_mode => ">>"
     );
-    ok( $ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=1\" Makefile.PL" );
+    ok($ac->check_pureperl_required(), "PERL_MM_OPT=\"PUREPERL_ONLY=1\" Makefile.PL");
 }
 
 SCOPE:
@@ -75,7 +75,7 @@ SCOPE:
         logfile_mode => ">>"
     );
     $ac->_set_argv("PUREPERL_ONLY=0");
-    ok( !$ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=0" );
+    ok(!$ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=0");
 }
 
 SCOPE:
@@ -86,7 +86,7 @@ SCOPE:
         logfile_mode => ">>"
     );
     $ac->_set_argv("PUREPERL_ONLY=1");
-    ok( $ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=1" );
+    ok($ac->check_pureperl_required(), "Makefile.PL PUREPERL_ONLY=1");
 }
 
 SCOPE:
@@ -97,7 +97,7 @@ SCOPE:
         logfile_mode => ">>"
     );
     $ac->_set_argv("--pureperl-only");
-    ok( $ac->check_pureperl_required(), "Build.PL --pureperl-only" );
+    ok($ac->check_pureperl_required(), "Build.PL --pureperl-only");
 }
 
 SCOPE:
@@ -108,5 +108,5 @@ SCOPE:
         logfile      => "config6.log",
         logfile_mode => ">>"
     );
-    ok( $ac->check_pureperl_required(), "PERL_MB_OPT=\"--pureperl-only\" " );
+    ok($ac->check_pureperl_required(), "PERL_MB_OPT=\"--pureperl-only\" ");
 }
