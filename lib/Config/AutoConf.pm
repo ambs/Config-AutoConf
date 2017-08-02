@@ -855,38 +855,6 @@ sub pop_lang
     $self->_set_language( @{ pop @{ $self->{lang_stack} } } );
 }
 
-=head2 lang_call( [prologue], function )
-
-Builds program which simply calls given function.
-When given, prologue is prepended otherwise, the default
-includes are used.
-
-=cut
-
-sub lang_call
-{
-    my ( $self, $prologue, $function ) = @_;
-    ref $self or $self = $self->_get_instance();
-
-    defined($prologue) or $prologue = $self->_default_includes();
-    $prologue .= <<"_ACEOF";
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C" {
-#endif
-char $function ();
-#ifdef __cplusplus
-}
-#endif
-_ACEOF
-    my $body = "return $function ();";
-    $body = $self->_build_main($body);
-
-    $self->_fill_defines() . "\n$prologue\n\n$body\n";
-}
-
 =head2 lang_build_program( prologue, body )
 
 Builds program for current chosen language. If no prologue is given
@@ -932,6 +900,56 @@ sub lang_build_program
     $body = $self->_build_main($body);
 
     $self->_fill_defines() . "\n$prologue\n\n$body\n";
+}
+
+sub _lang_prologue_func
+{
+    my ( $self, $prologue, $function ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    defined($prologue) or $prologue = $self->_default_includes();
+    $prologue .= <<"_ACEOF";
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+char $function ();
+#ifdef __cplusplus
+}
+#endif
+_ACEOF
+
+    return $prologue;
+}
+
+sub _lang_build_func
+{
+    my ( $self, $function ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    my $func_call = "return $function ();";
+    return $func_call;
+}
+
+=head2 lang_call( [prologue], function )
+
+Builds program which simply calls given function.
+When given, prologue is prepended otherwise, the default
+includes are used.
+
+=cut
+
+sub lang_call
+{
+    my ( $self, $prologue, $function ) = @_;
+    ref $self or $self = $self->_get_instance();
+
+    return $self->lang_build_program(
+        $self->_lang_prologue_func($prologue, $function),
+        $self->_lang_build_func($function),
+    );
 }
 
 =head2 lang_build_bool_test (prologue, test, [@decls])
@@ -2529,10 +2547,10 @@ sub check_default_headers
 Check for the following header files. For the first one that is found and
 defines 'DIR', define the listed C preprocessor macro:
 
-  dirent.h 	HAVE_DIRENT_H
-  sys/ndir.h 	HAVE_SYS_NDIR_H
-  sys/dir.h 	HAVE_SYS_DIR_H
-  ndir.h 	HAVE_NDIR_H
+  dirent.h      HAVE_DIRENT_H
+  sys/ndir.h    HAVE_SYS_NDIR_H
+  sys/dir.h     HAVE_SYS_DIR_H
+  ndir.h        HAVE_NDIR_H
 
 The directory-library declarations in your source code should look
 something like the following:
