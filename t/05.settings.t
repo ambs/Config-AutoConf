@@ -19,6 +19,7 @@ END
     }
 }
 
+Config::AutoConf->check_header("stdio.h") or plan skip_all => "No working compile environment";
 my $pkg_config = Config::AutoConf->check_prog_pkg_config;
 
 SKIP:
