@@ -3356,6 +3356,8 @@ sub check_lm
 Search for pkg-config flags for package as specified. The flags which are
 extracted are C<--cflags> and C<--libs>. The extracted flags are appended
 to the global C<extra_compile_flags> and C<extra_link_flags>, respectively.
+In case, no I<package configuration> matching given criteria could be found,
+return a C<false> value (C<0>).
 
 Call it with the package you're looking for and optional callback whether
 found or not.
@@ -3378,7 +3380,7 @@ sub _pkg_config_flag
       capture { system($_pkg_config_prog, @pkg_config_args); };
     chomp $stdout;
     0 == $exit and return $stdout;
-    return;
+    return $exit;
 }
 
 sub pkg_config_package_flags
@@ -3396,25 +3398,35 @@ sub pkg_config_package_flags
         my (@pkg_cflags, @pkg_libs);
 
         (my $ENV_CFLAGS = $package) =~ s/^(\w+).*?$/$1_CFLAGS/;
+        (my $ENV_LIBS   = $package) =~ s/^(\w+).*?$/$1_LIBS/;
+
+        my $pkg_exists = 0 + (
+                 defined $ENV{$ENV_CFLAGS}
+              or defined $ENV{$ENV_LIBS}
+              or _pkg_config_flag($package, "--exists") eq ""
+        );
+        looks_like_number($pkg_exists) and $pkg_exists == 0 and return 0;
+
         my $CFLAGS =
           defined $ENV{$ENV_CFLAGS}
           ? $ENV{$ENV_CFLAGS}
           : _pkg_config_flag($package, "--cflags");
-        $CFLAGS and @pkg_cflags = (
+        $CFLAGS and not looks_like_number($CFLAGS) and @pkg_cflags = (
             map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; Text::ParseWords::shellwords $_; }
               split(m/\n/, $CFLAGS)
         ) and push @{$self->{extra_preprocess_flags}}, @pkg_cflags;
 
-        (my $ENV_LIBS = $package) =~ s/^(\w+).*?$/$1_LIBS/;
         # do not separate between libs and extra (for now) - they come with -l prepended
         my $LIBS =
           defined $ENV{$ENV_LIBS}
           ? $ENV{$ENV_LIBS}
           : _pkg_config_flag($package, "--libs");
-        $LIBS and @pkg_libs = (
+        $LIBS and not looks_like_number($LIBS) and @pkg_libs = (
             map { $_ =~ s/^\s+//; $_ =~ s/\s+$//; Text::ParseWords::shellwords $_; }
               split(m/\n/, $LIBS)
-        ) and push @{$self->{extra_link_flags}}, @pkg_libs;
+        );
+        @pkg_libs and push @{$self->{extra_link_flags}}, grep { $_ !~ m/^-l/ } @pkg_libs;
+        @pkg_libs and push @{$self->{extra_libs}}, map { (my $l = $_) =~ s/^-l//; $l } grep { $_ =~ m/^-l/ } @pkg_libs;
 
         my $pkg_config_flags = join(" ", @pkg_cflags, @pkg_libs);
 
