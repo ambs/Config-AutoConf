@@ -3157,9 +3157,10 @@ Prepend -llibrary to LIBS for the first library found to contain function.
 
 If linking with library results in unresolved symbols that would be
 resolved by linking with additional libraries, give those libraries as
-the I<other-libraries> argument: e.g., C<[qw(Xt X11)]>. Otherwise, this
-method fails to detect that function is present, because linking the
-test program always fails with unresolved symbols.
+the I<other-libraries> argument: e.g., C<[qw(Xt X11)]> or C<[qw(intl),
+qw(intl iconv)]>. Otherwise, this method fails to detect that function
+is present, because linking the test program always fails with unresolved
+symbols.
 
 The result of this test is cached in the ac_cv_search_function variable
 as "none required" if function is already available, as C<0> if no
@@ -3198,29 +3199,45 @@ sub search_libs
 
         my @save_libs = @{$self->{extra_libs}};
         my $have_lib  = 0;
-        foreach my $libstest (undef, @$libs)
-        {
-            # XXX would local work on array refs? can we omit @save_libs?
-            $self->{extra_libs} = [@save_libs];
-            defined($libstest) and unshift(@{$self->{extra_libs}}, $libstest, @other_libs);
+
+        my $if_else_sub = sub {
+            my ($libstest, @other) = @_;
+            defined($libstest) and unshift(@{$self->{extra_libs}}, $libstest, @other);
             $self->link_if_else(
                 $conftest,
                 {
                     (
                         $options->{action_on_lib_true} && "CODE" eq ref $options->{action_on_lib_true}
-                        ? (action_on_true => sub { $options->{action_on_lib_true}->($libstest, @other_libs, @_) })
+                        ? (action_on_true => sub { $options->{action_on_lib_true}->($libstest, @other, @_) })
                         : ()
                     ),
                     (
                         $options->{action_on_lib_false} && "CODE" eq ref $options->{action_on_lib_false}
-                        ? (action_on_false => sub { $options->{action_on_lib_false}->($libstest, @other_libs, @_) })
+                        ? (action_on_false => sub { $options->{action_on_lib_false}->($libstest, @other, @_) })
                         : ()
                     ),
                 }
-              )
-              and ($have_lib = defined($libstest) ? $libstest : "none required")
-              and last;
+            ) and ($have_lib = defined($libstest) ? $libstest : "none required");
+        };
+
+      LIBTEST:
+        foreach my $libstest (undef, @$libs)
+        {
+            # XXX would local work on array refs? can we omit @save_libs?
+            $self->{extra_libs} = [@save_libs];
+            if (defined $libstest and scalar(@other_libs) > 1 and ref($other_libs[0]) eq "ARRAY")
+            {
+                foreach my $ol (@other_libs)
+                {
+                    $if_else_sub->($libstest, @{$ol}) and last LIBTEST;
+                }
+            }
+            else
+            {
+                $if_else_sub->($libstest, @other_libs) and last LIBTEST;
+            }
         }
+
         $self->{extra_libs} = [@save_libs];
 
               $have_lib
