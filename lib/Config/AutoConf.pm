@@ -3370,14 +3370,42 @@ sub check_lm
 
 =head2 pkg_config_package_flags($package, \%options?)
 
-Search for pkg-config flags for package as specified. The flags which are
-extracted are C<--cflags> and C<--libs>. The extracted flags are appended
-to the global C<extra_compile_flags> and C<extra_link_flags>, respectively.
-In case, no I<package configuration> matching given criteria could be found,
-return a C<false> value (C<0>).
+  use Config::AutoConf
+  
+  my $c = Config::AutoConf->new;
+  $c->pkg_config_package_flags('log4cplus');
+  WriteMakefile(
+    ...
+    INC  => $c->_get_extra_compiler_flags,
+    LIBS => $c->_get_extra_linker_flags,
+  );
 
-Call it with the package you're looking for and optional callback whether
-found or not.
+Search for C<pkg-config> flags for package as specified. The flags which are
+extracted are C<--cflags> and C<--libs>. The extracted flags are appended
+to the global C<extra_preprocess_flags>, C<extra_link_flags> or C<extra_libs>,
+respectively. Distinguishing between C<extra_link_flags> and C<extra_libs>
+is essential to avoid conflicts with L<search_libs function|/search_libs>
+and family.  In case, no I<package configuration> matching given criteria
+could be found, return a C<false> value (C<0>).
+
+The C<pkg-config> flags are taken from I<environment variables>
+C<< ${package}_CFLAGS >> or C<< ${package}_LIBS >> when defined, respectively.
+It will be a nice touch to document the particular envonment variables
+for your build procedure - as for above example it should be
+
+  $ env log4cplus_CFLAGS="-I/opt/coolapp/include" \
+        log4cplus_LIBS="-L/opt/coolapp/lib -Wl,-R/opt/coolapp/lib -llog4cplus" \
+    perl Makefile.PL
+
+Call C<pkg_config_package_flags> with the package you're looking for and
+optional callback whether found or not.
+
+To support stage compiling properly (C<rpath> vs. library file location),
+the internal representation is a moving target. Do not use the result
+directly - the getters L<_get_extra_compiler_flags|/_get_extra_compiler_flags>
+and L<_get_extra_linker_flags|/_get_extra_linker_flags> are strongly
+encouraged. In case this is not possible, please open a ticket to get
+informed on invasive changes.
 
 If the very last parameter contains a hash reference, C<CODE> references
 to I<action_on_true> or I<action_on_false> are executed, respectively.
@@ -3954,6 +3982,12 @@ sub _cache_type_name
     $self->_cache_name(map { $_ =~ tr/*/p/; $_ } @names);
 }
 
+=head2 _get_extra_compiler_flags
+
+Returns the determined flags required to run the compile stage as string
+
+=cut
+
 sub _get_extra_compiler_flags
 {
     my $self    = shift->_get_instance();
@@ -3961,6 +3995,12 @@ sub _get_extra_compiler_flags
     my @cflags  = @{$self->{extra_compile_flags}->{$self->{lang}}};
     join(" ", @ppflags, @cflags);
 }
+
+=head2 _get_extra_linker_flags
+
+Returns the determined flags required to run the link stage as string
+
+=cut
 
 sub _get_extra_linker_flags
 {
