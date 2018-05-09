@@ -17,8 +17,9 @@ all_pod_files_spelling_ok();
 
 __END__
 AnnoCPAN
-Autoconf
 AutoConf
+Autoconf
+DIR
 Dynaloader
 Jens
 LIBS
@@ -27,12 +28,8 @@ Perl'ish
 Rabbitson
 Rehsack
 Schwern
-Simões
-autoconf
 ctype
 dirlist
-eg
-ing
 inttypes
 lang
 libm
@@ -40,11 +37,12 @@ libperl
 libs
 llibrary
 lm
-preprocessor
+pkg
 pureperl
-refactoring
+std
 stdarg
 stddef
 stdint
 stdlib
+tee'ing
 unistd
