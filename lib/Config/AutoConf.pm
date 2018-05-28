@@ -228,11 +228,14 @@ sub check_files
     1;
 }
 
-sub _sanitize_prog
+sub _quote_shell_arg { scalar Text::ParseWords::shellwords($_[0]) > 1 ? QUOTE . $_[0] . QUOTE : $_[0] }
+
+sub _sanitize_prog { shift; _quote_shell_arg shift }
+
+sub _append_prog_args
 {
-    my ($self, $prog) = @_;
-    (scalar Text::ParseWords::shellwords $prog) > 1 and $prog = QUOTE . $prog . QUOTE;
-    $prog;
+    shift;
+    join " ", map { _quote_shell_arg $_ } @_;
 }
 
 my @exe_exts = ($^O eq "MSWin32" ? qw(.exe .com .bat .cmd) : (""));
@@ -329,13 +332,6 @@ sub check_progs
       and $options->{action_on_false}->();
 
     return;
-}
-
-sub _append_prog_args
-{
-    my $self = shift->_get_instance();
-    my $prog = shift;
-    join(" ", $self->_sanitize_prog($prog), @_);
 }
 
 =head2 check_prog_yacc
@@ -3993,7 +3989,7 @@ sub _get_extra_compiler_flags
     my $self    = shift->_get_instance();
     my @ppflags = @{$self->{extra_preprocess_flags}};
     my @cflags  = @{$self->{extra_compile_flags}->{$self->{lang}}};
-    join(" ", @ppflags, @cflags);
+    join(" ", map { _quote_shell_arg $_ } (@ppflags, @cflags));
 }
 
 =head2 _get_extra_linker_flags
@@ -4008,7 +4004,7 @@ sub _get_extra_linker_flags
     my @libs     = @{$self->{extra_libs}};
     my @lib_dirs = @{$self->{extra_lib_dirs}};
     my @ldflags  = @{$self->{extra_link_flags}};
-    join(" ", @ldflags, map('-L' . $self->_sanitize_prog($_), @lib_dirs), map("-l$_", @libs));
+    join(" ", map { _quote_shell_arg $_ } (@ldflags, map("-L" . $self->_sanitize_prog($_), @lib_dirs), map("-l$_", @libs)));
 }
 
 =head1 AUTHOR
