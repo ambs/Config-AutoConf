@@ -70,7 +70,7 @@ WriteMakefile1(
                 requires   => {%RUN_DEPS},
                 recommends => {
                     'ExtUtils::CBuilder' => '0.280220',
-                    'File::Slurp::Tiny'  => 0,
+                    'File::Slurper'      => 0,
                     'Scalar::Util'       => '1.18',
                 },
             },

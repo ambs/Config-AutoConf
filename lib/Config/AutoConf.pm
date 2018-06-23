@@ -47,8 +47,8 @@ sub looks_like_number {
 }
 EOP
 
-eval "use File::Slurp::Tiny qw/read_file/;";
-__PACKAGE__->can("read_file") or eval <<'EOP';
+eval "use File::Slurper qw/read_binary/;";
+__PACKAGE__->can("read_binary") or eval <<'EOP';
 =begin private
 
 =head2 read_file
@@ -57,7 +57,7 @@ __PACKAGE__->can("read_file") or eval <<'EOP';
 
 =cut
 
-sub read_file {
+sub read_binary {
   my $fn = shift;
   local $@ = "";
   open( my $fh, "<", $fn ) or croak "Error opening $fn: $!";
@@ -499,7 +499,7 @@ EOLEX
         );
         defined $self->{lex}->{root} or $self->{lex}->{root} = $lex_root_var;
 
-        my $conftest = read_file($lex_root_var . ".c");
+        my $conftest = read_binary($lex_root_var . ".c");
         unlink $lex_root_var . ".c";
 
         $cache_name = $self->_cache_name("lib", "lex");
