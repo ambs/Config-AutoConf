@@ -85,6 +85,8 @@ WriteMakefile1(
     BUILD_REQUIRES => \%BUILD_DEPS,
     TEST_REQUIRES  => \%TEST_DEPS,
     test           => {TESTS => 't/*.t xt/*.t'},
+    MIN_PERL_VERSION => 5.006,
+
 );
 
 sub WriteMakefile1
