@@ -3386,7 +3386,7 @@ could be found, return a C<false> value (C<0>).
 
 The C<pkg-config> flags are taken from I<environment variables>
 C<< ${package}_CFLAGS >> or C<< ${package}_LIBS >> when defined, respectively.
-It will be a nice touch to document the particular envonment variables
+It will be a nice touch to document the particular environment variables
 for your build procedure - as for above example it should be
 
   $ env log4cplus_CFLAGS="-I/opt/coolapp/include" \
