@@ -46,3 +46,7 @@ stdint
 stdlib
 tee'ing
 unistd
+Simões
+getters
+preprocessor
+refactoring
