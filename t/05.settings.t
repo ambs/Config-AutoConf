@@ -26,7 +26,7 @@ SKIP:
 {
     $pkg_config or skip "No pkg-config", 1;
     local $ENV{PKG_CONFIG_PATH} = File::Spec->catdir(dirname(abs_path($0)), "testdata");
-    my $ac = Config::AutoConf->new(logfile => "config5.log");
+    my $ac        = Config::AutoConf->new(logfile => "config5.log");
     my $foo_flags = $ac->pkg_config_package_flags("foo");
     is($foo_flags, "-I/base/path/include/foo-0 -L/base/path/lib/foo -lfoo", "pkg-config flags for 'foo'");
 }

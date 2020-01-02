@@ -384,7 +384,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_awk
 {
-    my $self = shift->_get_instance();
+    my $self       = shift->_get_instance();
     my $cache_name = $self->_cache_name("prog", "AWK");
     $self->check_cached($cache_name, "for awk", sub { $ENV{AWK} || $self->check_progs(qw/gawk mawk nawk awk/) });
 }
@@ -553,7 +553,7 @@ Note that it returns the full path, if found.
 
 sub check_prog_sed
 {
-    my $self = shift->_get_instance();
+    my $self       = shift->_get_instance();
     my $cache_name = $self->_cache_name("prog", "SED");
     $self->check_cached($cache_name, "for sed", sub { $ENV{SED} || $self->check_progs(qw/gsed sed/) });
 }
@@ -566,7 +566,7 @@ Checks for C<pkg-config> program. No additional tests are made for it ...
 
 sub check_prog_pkg_config
 {
-    my $self = shift->_get_instance();
+    my $self       = shift->_get_instance();
     my $cache_name = $self->_cache_name("prog", "PKG_CONFIG");
     $self->check_cached($cache_name, "for pkg-config", sub { $self->check_prog("pkg-config") });
 }
@@ -579,7 +579,7 @@ Determine a C compiler to use. Currently the probe is delegated to L<ExtUtils::C
 
 sub check_prog_cc
 {
-    my $self = shift->_get_instance();
+    my $self       = shift->_get_instance();
     my $cache_name = $self->_cache_name("prog", "CC");
 
     $self->check_cached(
@@ -1397,7 +1397,7 @@ sub check_decl
     $sym_call =~ s/,/) 0, (/g;
 
     my $cache_name = $self->_cache_name("decl", $self->{lang}, $symbol);
-    my $check_sub = sub {
+    my $check_sub  = sub {
 
         my $body = <<ACEOF;
 #ifndef $sym_plain
@@ -1746,7 +1746,7 @@ sub check_type
     ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name("type", $type);
-    my $check_sub = sub {
+    my $check_sub  = sub {
 
         my $body = <<ACEOF;
   if( sizeof ($type) )
@@ -1954,7 +1954,7 @@ sub compute_int
     $self = $self->_get_instance();
 
     my $cache_name = $self->_cache_type_name("compute_int", $self->{lang}, $expr);
-    my $check_sub = sub {
+    my $check_sub  = sub {
         my $val = $self->_compute_int_compile($expr, $options->{prologue}, @decls);
 
         defined $val
@@ -2038,7 +2038,7 @@ sub check_sizeof_type
     ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name("sizeof", $self->{lang}, $type);
-    my $check_sub = sub {
+    my $check_sub  = sub {
         my @decls;
         if ($type =~ m/^([^.]+)\.([^.]+)$/)
         {
@@ -2196,7 +2196,7 @@ sub check_alignof_type
     ref($type) eq "" or return croak("No type to check for");
 
     my $cache_name = $self->_cache_type_name("alignof", $self->{lang}, $type);
-    my $check_sub = sub {
+    my $check_sub  = sub {
         my @decls = (
             "#ifndef offsetof",
             "# ifdef __ICC",
@@ -2389,7 +2389,7 @@ sub check_member
   if( check_aggr.$member )
     return 0;
 ACEOF
-        my $conftest = $self->lang_build_program($options->{prologue}, $body);
+        my $conftest    = $self->lang_build_program($options->{prologue}, $body);
         my $have_member = $self->compile_if_else($conftest);
 
         unless ($have_member)
@@ -2399,7 +2399,7 @@ ACEOF
   if( sizeof check_aggr.$member )
     return 0;
 ACEOF
-            $conftest = $self->lang_build_program($options->{prologue}, $body);
+            $conftest    = $self->lang_build_program($options->{prologue}, $body);
             $have_member = $self->compile_if_else($conftest);
         }
 
@@ -2710,7 +2710,7 @@ sub check_stdc_headers
 
     # XXX for C++ the map should look like "c${_}" ...
     my @c_ansi_c_headers = map { "${_}.h" } @ansi_c_headers;
-    my $rc = $self->check_all_headers(@c_ansi_c_headers, $options);
+    my $rc               = $self->check_all_headers(@c_ansi_c_headers, $options);
     $rc and $self->define_var("STDC_HEADERS", 1, "Define to 1 if you have the ANSI C header files.");
     $rc;
 }
@@ -2810,7 +2810,7 @@ sub check_dirent_header
         if ($self->check_header($header))
         {
             my $cache_name = $self->_cache_name("dirent", $header);
-            my $check_sub = sub {
+            my $check_sub  = sub {
                 my $have_dirent;
                 $have_dirent = $self->_check_header(
                     $header,
@@ -3003,7 +3003,7 @@ sub _check_link_perlapi
     $libperl =~ s/\.[^\.]*$//;
 
     push @{$self->{extra_link_flags}}, "-L" . File::Spec->catdir($Config{installarchlib}, "CORE");
-    push @{$self->{extra_libs}}, "$libperl";
+    push @{$self->{extra_libs}},       "$libperl";
     if ($Config{perllibs})
     {
         foreach my $perllib (split(" ", $Config{perllibs}))
@@ -3094,7 +3094,7 @@ sub check_lib
       and @other_libs = @{$other_libs[0]};
 
     my $cache_name = $self->_cache_name("lib", $lib, $func);
-    my $check_sub = sub {
+    my $check_sub  = sub {
         my $conftest = $self->lang_call("", $func);
 
         my @save_libs = @{$self->{extra_libs}};
@@ -3190,7 +3190,7 @@ sub search_libs
       and @other_libs = @{$other_libs[0]};
 
     my $cache_name = $self->_cache_name("search", $func);
-    my $check_sub = sub {
+    my $check_sub  = sub {
         my $conftest = $self->lang_call("", $func);
 
         my @save_libs = @{$self->{extra_libs}};

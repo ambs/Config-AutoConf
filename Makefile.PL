@@ -2,7 +2,9 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
-my %RUN_DEPS = (
+my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
+my %BUILD_DEPS     = ();
+my %RUN_DEPS       = (
     'base'             => 0,
     'strict'           => 0,
     'warnings'         => 0,
@@ -16,9 +18,6 @@ my %RUN_DEPS = (
     'File::Temp'       => 0,
     'Text::ParseWords' => 0,
 );
-my %CONFIGURE_DEPS = ('ExtUtils::MakeMaker' => 0);
-my %BUILD_DEPS = ();
-
 my %TEST_DEPS = (
     'Test::More'         => 0.90,
     'ExtUtils::CBuilder' => '0.23'
@@ -76,15 +75,15 @@ WriteMakefile1(
             },
         },
     },
-    NAME           => 'Config::AutoConf',
-    AUTHOR         => ['Alberto Simoes <ambs@cpan.org>', 'Jens Rehsack <rehsack@cpan.org'],
-    VERSION_FROM   => 'lib/Config/AutoConf.pm',
-    ABSTRACT_FROM  => 'lib/Config/AutoConf.pm',
-    LICENSE        => 'perl',
-    PREREQ_PM      => \%RUN_DEPS,
-    BUILD_REQUIRES => \%BUILD_DEPS,
-    TEST_REQUIRES  => \%TEST_DEPS,
-    test           => {TESTS => 't/*.t xt/*.t'},
+    NAME             => 'Config::AutoConf',
+    AUTHOR           => ['Alberto Simoes <ambs@cpan.org>', 'Jens Rehsack <rehsack@cpan.org'],
+    VERSION_FROM     => 'lib/Config/AutoConf.pm',
+    ABSTRACT_FROM    => 'lib/Config/AutoConf.pm',
+    LICENSE          => 'perl',
+    PREREQ_PM        => \%RUN_DEPS,
+    BUILD_REQUIRES   => \%BUILD_DEPS,
+    TEST_REQUIRES    => \%TEST_DEPS,
+    test             => {TESTS => 't/*.t xt/*.t'},
     MIN_PERL_VERSION => 5.006,
 
 );
