@@ -3434,6 +3434,7 @@ sub pkg_config_package_flags
     (my $pkgpfx = $package) =~ s/^(\w+).*?$/$1/;
     my $cache_name = $self->_cache_name("pkg", $pkgpfx);
 
+    defined $_pkg_config_prog or $_pkg_config_prog = $self->{cache}->{$self->_cache_name("prog", "PKG_CONFIG")};
     defined $_pkg_config_prog or $_pkg_config_prog = $self->check_prog_pkg_config;
     my $check_sub = sub {
         my (@pkg_cflags, @pkg_libs);
