@@ -271,12 +271,13 @@ sub check_prog
     {
         for my $e (@exe_exts)
         {
-            my $cmd = $self->_sanitize_prog(File::Spec->catfile($p, $ac_prog . $e));
-            -x $cmd
+            my $cmd           = $self->_sanitize_prog(File::Spec->catfile($p, $ac_prog . $e));
+            my $is_executable = -x $cmd and -f $cmd;
+                  $is_executable
               and $options->{action_on_true}
               and ref $options->{action_on_true} eq "CODE"
               and $options->{action_on_true}->();
-            -x $cmd and return $cmd;
+            $is_executable and return $cmd;
         }
     }
 
@@ -2201,7 +2202,7 @@ sub check_alignof_type
             "#ifndef offsetof",
             "# ifdef __ICC",
             "#  define offsetof(type,memb) ((size_t)(((char *)(&((type*)0)->memb)) - ((char *)0)))",
-            "# else", "#  define offsetof(type,memb) ((size_t)&((type*)0)->memb)",
+            "# else",  "#  define offsetof(type,memb) ((size_t)&((type*)0)->memb)",
             "# endif", "#endif"
         );
 
