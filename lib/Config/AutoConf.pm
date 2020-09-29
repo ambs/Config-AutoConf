@@ -3206,9 +3206,9 @@ sub search_libs
     my $check_sub  = sub {
         my $conftest = $self->lang_call("", $func);
 
-        my @save_libs = @{$self->{extra_libs}};
+        my @save_libs  = @{$self->{extra_libs}};
         my @save_extra = @{$self->{extra_link_flags}};
-        my $have_lib  = 0;
+        my $have_lib   = 0;
 
         my $if_else_sub = sub {
             my ($libstest, @other) = @_;
@@ -3236,7 +3236,7 @@ sub search_libs
             foreach my $linkextra (undef, @other_link_flags)
             {
                 # XXX would local work on array refs? can we omit @save_libs?
-                $self->{extra_libs} = [@save_libs];
+                $self->{extra_libs}       = [@save_libs];
                 $self->{extra_link_flags} = [@save_extra];
                 if (defined $libstest and scalar(@other_libs) > 1 and ref($other_libs[0]) eq "ARRAY")
                 {
