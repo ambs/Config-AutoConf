@@ -3137,7 +3137,15 @@ sub check_lib
     );
 }
 
-=head2 search_libs( function, search-libs, @other-libs?, \%options? )
+=head2 search_libs( function, search-libs, @other-libs?, @extra_link_flags?, \%options? )
+
+    Config::AutoConf->search_libs("gethostent", "nsl", [qw(socket net)], {
+        action_on_true => sub { ... }
+    });
+    Config::AutoConf->search_libs("log4cplus_initialize", ["log4cplus"],
+        [[qw(stdc++)], [qw(stdc++ unwind)]],
+        [qw(-pthread -thread)]
+    );
 
 Search for a library defining function if it's not already available.
 This equates to calling
@@ -3179,7 +3187,7 @@ sub search_libs
     my $options = {};
     scalar @_ > 1 and ref $_[-1] eq "HASH" and $options = pop @_;
     my $self = shift->_get_instance();
-    my ($func, $libs, @other_libs) = @_;
+    my ($func, $libs, @other_libs, @other_link_flags) = @_;
 
     (defined($libs) and "ARRAY" eq ref($libs) and scalar(@{$libs}) > 0)
       or return 0;    # XXX would prefer croak
@@ -3189,11 +3197,16 @@ sub search_libs
       and ref($other_libs[0]) eq "ARRAY"
       and @other_libs = @{$other_libs[0]};
 
+    scalar(@other_link_flags) == 1
+      and ref($other_link_flags[0]) eq "ARRAY"
+      and @other_link_flags = @{$other_link_flags[0]};
+
     my $cache_name = $self->_cache_name("search", $func);
     my $check_sub  = sub {
         my $conftest = $self->lang_call("", $func);
 
         my @save_libs = @{$self->{extra_libs}};
+        my @save_extra = @{$self->{extra_link_flags}};
         my $have_lib  = 0;
 
         my $if_else_sub = sub {
@@ -3219,18 +3232,22 @@ sub search_libs
       LIBTEST:
         foreach my $libstest (undef, @$libs)
         {
-            # XXX would local work on array refs? can we omit @save_libs?
-            $self->{extra_libs} = [@save_libs];
-            if (defined $libstest and scalar(@other_libs) > 1 and ref($other_libs[0]) eq "ARRAY")
+            foreach my $linkextra (undef, @other_link_flags)
             {
-                foreach my $ol (@other_libs)
+                # XXX would local work on array refs? can we omit @save_libs?
+                $self->{extra_libs} = [@save_libs];
+                $self->{extra_link_flags} = [@save_extra];
+                if (defined $libstest and scalar(@other_libs) > 1 and ref($other_libs[0]) eq "ARRAY")
                 {
-                    $if_else_sub->($libstest, @{$ol}) and last LIBTEST;
+                    foreach my $ol (@other_libs)
+                    {
+                        $if_else_sub->($libstest, @{$ol}) and last LIBTEST;
+                    }
                 }
-            }
-            else
-            {
-                $if_else_sub->($libstest, @other_libs) and last LIBTEST;
+                else
+                {
+                    $if_else_sub->($libstest, @other_libs) and last LIBTEST;
+                }
             }
         }
 
