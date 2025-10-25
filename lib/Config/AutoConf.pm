@@ -3001,7 +3001,7 @@ sub _check_link_perlapi
 
     my $libperl = $Config{libperl};
     $libperl =~ s/^lib//;
-    $libperl =~ s/\.[^\.]*$//;
+    $libperl =~ s/^(.*)\.so(?:\..*)?$/$1/;
 
     push @{$self->{extra_link_flags}}, "-L" . File::Spec->catdir($Config{installarchlib}, "CORE");
     push @{$self->{extra_libs}},       "$libperl";
