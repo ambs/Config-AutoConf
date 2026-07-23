@@ -60,8 +60,17 @@ diag("Check for some progs to get an overview about world outside");
 
 sub _is_x
 {
-    $^O =~ m/MSWin32/i and return $_[0] =~ m/\.(?:exe|com|bat|cmd)$/;
-    return -x $_[0];
+    my ($bin) = @_;
+    $^O =~ m/MSWin32/i and return $bin =~ m/\.(?:exe|com|bat|cmd)$/;
+
+    # A bare command name (no directory component) is only resolvable via
+    # $PATH at exec time, not with -x on the literal string; e.g. Gentoo
+    # exports LEX=flex, YACC=bison etc without an absolute path. Resolve it
+    # the same way the shell would before checking for executability.
+    File::Spec->file_name_is_absolute($bin)
+      or $bin = Config::AutoConf->check_prog($bin) || $bin;
+
+    return -x $bin;
 }
 
 SKIP:
